@@ -14,8 +14,29 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'https://crowd-verse.vercel.app'
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
+
+// Health check
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', message: 'CrowdVerse API' });
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);
