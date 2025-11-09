@@ -14,16 +14,40 @@ const app = express();
 connectDB();
 
 // Middleware
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
+const staticOrigins = [
   'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'https://crowd-verse.vercel.app'
-].filter(Boolean);
+];
+
+const envOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = [...new Set([...staticOrigins, ...envOrigins])];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const hostname = new URL(origin).hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return true;
+    }
+    if (hostname === 'vercel.app' || hostname.endsWith('.vercel.app')) {
+      return true;
+    }
+  } catch (err) {
+    return false;
+  }
+  return false;
+};
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'));
