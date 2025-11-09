@@ -47,11 +47,17 @@ router.get('/stocks', async (_req, res) => {
     return res.json(payload);
   } catch (err) {
     console.error(err?.response?.data || err.message || err);
-    if (err.message === 'FINNHUB_API_KEY not configured') {
+    if (err.message === 'FINNHUB_API_KEY not configured' || err.message === 'TWELVEDATA_API_KEY not configured') {
       return res.status(500).json({ message: err.message });
     }
     if (err.message === 'FINNHUB_LIMIT') {
       return res.status(429).json({ message: err.details || 'Finnhub rate limit reached' });
+    }
+    if (err.message === 'TWELVEDATA_LIMIT') {
+      return res.status(429).json({ message: err.details || 'Twelve Data rate limit reached' });
+    }
+    if (err.message === 'TWELVEDATA_FETCH_FAILED') {
+      return res.status(502).json({ message: 'Failed to fetch Indian equities data from Twelve Data', details: err.details });
     }
     return res.status(500).json({ message: 'Failed to fetch stock markets' });
   }

@@ -12,16 +12,16 @@ const cryptoAssets = [
 ];
 
 const stockAssets = [
-  { symbol: 'RELIANCE', finnhubSymbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.' },
-  { symbol: 'TCS', finnhubSymbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.' },
-  { symbol: 'HDFCBANK', finnhubSymbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.' },
-  { symbol: 'INFY', finnhubSymbol: 'INFY.NS', name: 'Infosys Ltd.' },
-  { symbol: 'ICICIBANK', finnhubSymbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.' },
-  { symbol: 'SBIN', finnhubSymbol: 'SBIN.NS', name: 'State Bank of India' },
-  { symbol: 'LT', finnhubSymbol: 'LT.NS', name: 'Larsen & Toubro Ltd.' },
-  { symbol: 'ITC', finnhubSymbol: 'ITC.NS', name: 'ITC Ltd.' },
-  { symbol: 'AXISBANK', finnhubSymbol: 'AXISBANK.NS', name: 'Axis Bank Ltd.' },
-  { symbol: 'KOTAKBANK', finnhubSymbol: 'KOTAKBANK.NS', name: 'Kotak Mahindra Bank Ltd.' },
+  { symbol: 'RELIANCE', twelvedataSymbol: 'RELIANCE.NSE', name: 'Reliance Industries Ltd.' },
+  { symbol: 'TCS', twelvedataSymbol: 'TCS.NSE', name: 'Tata Consultancy Services Ltd.' },
+  { symbol: 'HDFCBANK', twelvedataSymbol: 'HDFCBANK.NSE', name: 'HDFC Bank Ltd.' },
+  { symbol: 'INFY', twelvedataSymbol: 'INFY.NSE', name: 'Infosys Ltd.' },
+  { symbol: 'ICICIBANK', twelvedataSymbol: 'ICICIBANK.NSE', name: 'ICICI Bank Ltd.' },
+  { symbol: 'SBIN', twelvedataSymbol: 'SBIN.NSE', name: 'State Bank of India' },
+  { symbol: 'LT', twelvedataSymbol: 'LT.NSE', name: 'Larsen & Toubro Ltd.' },
+  { symbol: 'ITC', twelvedataSymbol: 'ITC.NSE', name: 'ITC Ltd.' },
+  { symbol: 'AXISBANK', twelvedataSymbol: 'AXISBANK.NSE', name: 'Axis Bank Ltd.' },
+  { symbol: 'KOTAKBANK', twelvedataSymbol: 'KOTAKBANK.NSE', name: 'Kotak Mahindra Bank Ltd.' },
 ];
 
 module.exports = {
