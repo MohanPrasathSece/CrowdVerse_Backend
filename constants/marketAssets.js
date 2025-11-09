@@ -12,16 +12,16 @@ const cryptoAssets = [
 ];
 
 const stockAssets = [
-  { symbol: 'RELIANCE', moneycontrolSlug: 'RI', name: 'Reliance Industries Ltd.' },
-  { symbol: 'TCS', moneycontrolSlug: 'TC', name: 'Tata Consultancy Services Ltd.' },
-  { symbol: 'HDFCBANK', moneycontrolSlug: 'HDF', name: 'HDFC Bank Ltd.' },
-  { symbol: 'INFY', moneycontrolSlug: 'IT', name: 'Infosys Ltd.' },
-  { symbol: 'ICICIBANK', moneycontrolSlug: 'ICB', name: 'ICICI Bank Ltd.' },
-  { symbol: 'SBIN', moneycontrolSlug: 'SBI', name: 'State Bank of India' },
-  { symbol: 'LT', moneycontrolSlug: 'LT', name: 'Larsen & Toubro Ltd.' },
-  { symbol: 'ITC', moneycontrolSlug: 'ITC', name: 'ITC Ltd.' },
-  { symbol: 'AXISBANK', moneycontrolSlug: 'AR31', name: 'Axis Bank Ltd.' },
-  { symbol: 'KOTAKBANK', moneycontrolSlug: 'KB', name: 'Kotak Mahindra Bank Ltd.' },
+  { symbol: 'RELIANCE', finnhubSymbol: 'RELIANCE.NS', name: 'Reliance Industries Ltd.' },
+  { symbol: 'TCS', finnhubSymbol: 'TCS.NS', name: 'Tata Consultancy Services Ltd.' },
+  { symbol: 'HDFCBANK', finnhubSymbol: 'HDFCBANK.NS', name: 'HDFC Bank Ltd.' },
+  { symbol: 'INFY', finnhubSymbol: 'INFY.NS', name: 'Infosys Ltd.' },
+  { symbol: 'ICICIBANK', finnhubSymbol: 'ICICIBANK.NS', name: 'ICICI Bank Ltd.' },
+  { symbol: 'SBIN', finnhubSymbol: 'SBIN.NS', name: 'State Bank of India' },
+  { symbol: 'LT', finnhubSymbol: 'LT.NS', name: 'Larsen & Toubro Ltd.' },
+  { symbol: 'ITC', finnhubSymbol: 'ITC.NS', name: 'ITC Ltd.' },
+  { symbol: 'AXISBANK', finnhubSymbol: 'AXISBANK.NS', name: 'Axis Bank Ltd.' },
+  { symbol: 'KOTAKBANK', finnhubSymbol: 'KOTAKBANK.NS', name: 'Kotak Mahindra Bank Ltd.' },
 ];
 
 module.exports = {

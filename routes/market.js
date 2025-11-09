@@ -53,14 +53,6 @@ router.get('/stocks', async (_req, res) => {
     if (err.message === 'FINNHUB_LIMIT') {
       return res.status(429).json({ message: err.details || 'Finnhub rate limit reached' });
     }
-    if (err.message === 'YAHOO_FETCH_FAILED') {
-      return res.status(502).json({ message: 'Failed to fetch Indian equities data', details: err.details });
-    }
-    if (['MONEYCONTROL_FETCH_FAILED', 'MONEYCONTROL_SYMBOL_FAILED'].includes(err.message)) {
-      return res
-        .status(502)
-        .json({ message: 'Failed to fetch Indian equities data from Moneycontrol', details: err.details, symbol: err.symbol });
-    }
     return res.status(500).json({ message: 'Failed to fetch stock markets' });
   }
 });
