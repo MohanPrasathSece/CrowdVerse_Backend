@@ -18,6 +18,7 @@ async function upsertStocks(items) {
       update: {
         $set: {
           name: s.name,
+          sector: s.sector ?? null,
           price: s.price,
           open: s.open,
           high: s.high,
@@ -25,6 +26,7 @@ async function upsertStocks(items) {
           prevClose: s.prevClose,
           change: s.change,
           marketCap: s.marketCap,
+          weightage: s.weightage ?? null,
           source: 'NSE',
           updatedAt: new Date(),
         },
@@ -48,8 +50,13 @@ function startNSEStocksJob() {
       try {
         console.log('[NSEStocksJob] Fetching NIFTY 50...');
         const items = await fetchNifty50();
+        items.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
         const count = await upsertStocks(items);
-        console.log(`[NSEStocksJob] Upserted ${count} documents.`);
+        const topSymbols = items
+          .slice(0, 10)
+          .map((s, idx) => `${idx + 1}. ${s.symbol}`)
+          .join(' | ');
+        console.log(`[NSEStocksJob] Upserted ${count} documents. Top snapshot -> ${topSymbols}`);
       } catch (err) {
         console.error('[NSEStocksJob] Failed', err?.message || err);
       }

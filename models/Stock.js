@@ -12,6 +12,7 @@ const stockSchema = new mongoose.Schema(
     prevClose: { type: Number, default: null },
     change: { type: Number, default: null }, // percentage change
     marketCap: { type: Number, default: null },
+    weightage: { type: Number, default: null },
     source: { type: String, default: 'NSE' },
     updatedAt: { type: Date, default: Date.now, index: true },
   },

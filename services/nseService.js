@@ -3,6 +3,29 @@ const axios = require('axios');
 const NSE_BASE = 'https://www.nseindia.com';
 const NIFTY_50_ENDPOINT = `${NSE_BASE}/api/equity-stockIndices?index=${encodeURIComponent('NIFTY 50')}`;
 
+const SECTOR_MAP = {
+  RELIANCE: 'Energy / Diversified',
+  TCS: 'IT Services',
+  HDFCBANK: 'Banking',
+  ICICIBANK: 'Banking',
+  INFY: 'IT Services',
+  SBIN: 'Banking',
+  LT: 'Infrastructure',
+  ITC: 'FMCG / Diversified',
+  BHARTIARTL: 'Telecom',
+  HINDUNILVR: 'FMCG',
+  AXISBANK: 'Banking',
+  KOTAKBANK: 'Banking',
+  SUNPHARMA: 'Pharmaceuticals',
+  ASIANPAINT: 'Consumer / Paints',
+  MARUTI: 'Automobile',
+  BAJFINANCE: 'Financial Services',
+  BAJAJFINSV: 'Financial Services',
+  TITAN: 'Consumer / Luxury',
+  ULTRACEMCO: 'Cement & Materials',
+  NESTLEIND: 'FMCG',
+};
+
 const axiosNSE = axios.create({
   timeout: 15000,
   headers: {
@@ -59,6 +82,8 @@ async function fetchNifty50() {
     else if (price != null && prevClose != null) change = ((price - prevClose) / prevClose) * 100;
 
     const marketCap = parseNum(s?.marketCap || s?.mktCap || s?.market_Capitalization);
+    const weightage = parseNum(s?.weightage || s?.indexWeight); // NSE may expose index weight
+    const sector = SECTOR_MAP[symbol] || (s?.industry ? String(s.industry) : null);
 
     return {
       symbol,
@@ -70,6 +95,8 @@ async function fetchNifty50() {
       prevClose,
       change,
       marketCap,
+      weightage,
+      sector,
     };
   });
 
