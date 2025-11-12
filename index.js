@@ -7,6 +7,7 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const marketRoutes = require('./routes/market');
 const startMarketSnapshotJob = require('./jobs/marketSnapshotJob');
+const startNSEStocksJob = require('./jobs/nseStocksJob');
 
 const app = express();
 
@@ -82,3 +83,5 @@ app.listen(PORT, () => {
 
 // Schedule hourly market snapshots if env configured
 startMarketSnapshotJob();
+// Schedule hourly NSE NIFTY 50 refresh to DB
+startNSEStocksJob();

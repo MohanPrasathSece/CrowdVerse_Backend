@@ -4,6 +4,8 @@ const router = express.Router();
 
 const { cryptoAssets, stockAssets } = require('../constants/marketAssets');
 const { fetchCryptoQuotes, fetchStockQuotes } = require('../services/marketService');
+const Stock = require('../models/Stock');
+const { fetchNifty50 } = require('../services/nseService');
 
 // GET /api/market/quote?symbol=RELIANCE.NS
 router.get('/quote', async (req, res) => {
@@ -43,23 +45,38 @@ router.get('/crypto', async (_req, res) => {
 // GET /api/market/stocks
 router.get('/stocks', async (_req, res) => {
   try {
-    const payload = await fetchStockQuotes();
-    return res.json(payload);
+    // Prefer cached DB values updated hourly by NSE job
+    let docs = [];
+    try {
+      docs = await Stock.find({}).sort({ marketCap: -1 }).limit(10).lean();
+    } catch (_) {}
+
+    let top = docs;
+    if (!Array.isArray(top) || top.length === 0) {
+      // Fallback: live fetch from NSE
+      const live = await fetchNifty50();
+      top = live
+        .filter((x) => x && x.symbol)
+        .sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0))
+        .slice(0, 10);
+    }
+
+    const results = top.map((s, idx) => ({
+      rank: idx + 1,
+      name: s.name,
+      symbol: s.symbol,
+      price: s.price ?? null,
+      open: s.open ?? null,
+      high: s.high ?? null,
+      low: s.low ?? null,
+      prevClose: s.prevClose ?? null,
+      change: s.change ?? null,
+    }));
+
+    return res.json({ results });
   } catch (err) {
     console.error(err?.response?.data || err.message || err);
-    if (err.message === 'FINNHUB_API_KEY not configured' || err.message === 'TWELVEDATA_API_KEY not configured') {
-      return res.status(500).json({ message: err.message });
-    }
-    if (err.message === 'FINNHUB_LIMIT') {
-      return res.status(429).json({ message: err.details || 'Finnhub rate limit reached' });
-    }
-    if (err.message === 'TWELVEDATA_LIMIT') {
-      return res.status(429).json({ message: err.details || 'Twelve Data rate limit reached' });
-    }
-    if (err.message === 'TWELVEDATA_FETCH_FAILED') {
-      return res.status(502).json({ message: 'Failed to fetch Indian equities data from Twelve Data', details: err.details });
-    }
-    return res.status(500).json({ message: 'Failed to fetch stock markets' });
+    return res.status(500).json({ message: 'Failed to fetch stock markets (NSE)' });
   }
 });
 
