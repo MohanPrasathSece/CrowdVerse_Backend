@@ -18,9 +18,29 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || '';
 const HF_KEY = process.env.HUGGINGFACE_API_KEY || '';
 const HF_MODEL = process.env.HUGGINGFACE_MODEL || 'google/flan-t5-base';
 
+// Simple in-memory cache per process (24h TTL)
+const SUMMARY_CACHE = new Map(); // key -> { at: number, data: object }
+const TTL_MS = 24 * 60 * 60 * 1000;
+
 router.post('/', async (req, res) => {
-  const { asset_name, recent_comments = [], recent_news = [], market_sentiment = '' } = req.body || {};
+  const { asset_name, recent_comments = [], recent_news = [], market_sentiment = '', refresh: refreshBody } = req.body || {};
   const AI_PROVIDER = String(process.env.AI_PROVIDER || '').toLowerCase();
+  const refresh = String(req.query.refresh || '').toLowerCase() === 'true' || Boolean(refreshBody);
+  const key = String(asset_name || '').toUpperCase();
+
+  // Serve from cache if fresh and not forced to refresh
+  const cached = SUMMARY_CACHE.get(key);
+  if (!refresh && cached && Date.now() - cached.at < TTL_MS) {
+    return res.json(cached.data);
+  }
+
+  // Helper to cache and send
+  const sendAndCache = (payload) => {
+    try {
+      SUMMARY_CACHE.set(key, { at: Date.now(), data: payload });
+    } catch (_) {}
+    return res.json(payload);
+  };
 
   // If explicitly requested, prefer OpenRouter first
   if (AI_PROVIDER === 'openrouter' && OPENROUTER_API_KEY) {
@@ -46,7 +66,7 @@ router.post('/', async (req, res) => {
       const text = orResp.data?.choices?.[0]?.message?.content || '';
       const parts = String(text).trim().split(/\n\n+/);
       const [g = '', c = '', m = '', f = ''] = parts.map((s) => s.replace(/^.*?:\s*/i, ''));
-      return res.json({
+      return sendAndCache({
         global_news_summary: g,
         user_comments_summary: c,
         market_sentiment_summary: m,
@@ -86,7 +106,7 @@ router.post('/', async (req, res) => {
     } catch (err) {
       const code = err?.response?.status;
       if (code === 503) {
-        return res.json({
+        return sendAndCache({
           global_news_summary: 'Model is warming up on Hugging Face free tier. Please wait a few seconds and retry.',
           user_comments_summary: '—',
           market_sentiment_summary: '—',
@@ -148,7 +168,7 @@ router.post('/', async (req, res) => {
 
       const text = completion.choices?.[0]?.message?.content || '';
       const [g, c, m, f] = text.split(/\n\n/).map((s) => s.replace(/^.*?:\s*/i, ''));
-      return res.json({
+      return sendAndCache({
         global_news_summary: g || '',
         user_comments_summary: c || '',
         market_sentiment_summary: m || '',
@@ -160,7 +180,7 @@ router.post('/', async (req, res) => {
   }
 
   // If no providers configured
-  return res.json({
+  return sendAndCache({
     global_news_summary: 'AI provider not configured. Add a free HUGGINGFACE_API_KEY to enable summaries.',
     user_comments_summary: '—',
     market_sentiment_summary: '—',
