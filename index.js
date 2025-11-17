@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
@@ -10,6 +12,7 @@ const startMarketSnapshotJob = require('./jobs/marketSnapshotJob');
 const startNSEStocksJob = require('./jobs/nseStocksJob');
 
 const app = express();
+const server = http.createServer(app);
 
 // Connect to MongoDB (optional until MONGODB_URI is set)
 connectDB();
@@ -66,6 +69,8 @@ app.get('/', (_req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/market', marketRoutes);
+app.use('/api/assets', require('./routes/asset'));
+app.use('/api/ai-summary', require('./routes/aiSummary'));
 
 // Serve React build in production
 if (process.env.NODE_ENV === 'production') {
@@ -76,8 +81,34 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  },
+});
+
+io.on('connection', (socket) => {
+  socket.on('join_asset', (asset) => {
+    if (typeof asset === 'string' && asset.trim()) {
+      socket.join(String(asset).toUpperCase());
+    }
+  });
+  socket.on('leave_asset', (asset) => {
+    if (typeof asset === 'string' && asset.trim()) {
+      socket.leave(String(asset).toUpperCase());
+    }
+  });
+});
+
+app.set('io', io);
+
 const PORT = process.env.SERVER_PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
