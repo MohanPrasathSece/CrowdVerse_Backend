@@ -61,6 +61,15 @@ app.use(
 );
 app.use(express.json());
 
+// Log AI provider status for visibility
+if (process.env.HUGGINGFACE_API_KEY) {
+  console.log(`🧠 AI Provider: Hugging Face (${process.env.HUGGINGFACE_MODEL || 'google/flan-t5-base'})`);
+} else if (process.env.OPENAI_API_KEY) {
+  console.log('🧠 AI Provider: OpenAI');
+} else {
+  console.warn('🧠 AI Provider: none configured');
+}
+
 // Health check
 app.get('/', (_req, res) => {
   res.json({ status: 'ok', message: 'CrowdVerse API' });
