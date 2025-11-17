@@ -34,12 +34,31 @@ router.post('/', async (req, res) => {
     return res.json(cached.data);
   }
 
+  // Ensure minimal, non-empty summaries
+  const ensureFilled = (p) => {
+    const a = String(asset_name || 'the asset');
+    const safe = (s, def) => (String(s || '').trim().length > 10 ? String(s) : def);
+    const fallback = {
+      global_news_summary: `No major recent headlines detected. Consider historical performance and sector context for ${a}; watch upcoming earnings, guidance, or regulatory updates that may affect momentum.`,
+      user_comments_summary: `Community commentary is limited for ${a}. Treat sentiment signals cautiously; combine with price action and volume to avoid bias.`,
+      market_sentiment_summary: `When explicit sentiment data is sparse, assume mixed-to-neutral conditions and look for breakouts above resistance or failures at key levels to validate direction.`,
+      final_summary: `Overall, build a plan for ${a}: define invalidation levels, position sizing, and news triggers. Use a checklist mindset until stronger catalysts or consensus emerge.`,
+    };
+    return {
+      global_news_summary: safe(p.global_news_summary, fallback.global_news_summary),
+      user_comments_summary: safe(p.user_comments_summary, fallback.user_comments_summary),
+      market_sentiment_summary: safe(p.market_sentiment_summary, fallback.market_sentiment_summary),
+      final_summary: safe(p.final_summary, fallback.final_summary),
+    };
+  };
+
   // Helper to cache and send
   const sendAndCache = (payload) => {
+    const filled = ensureFilled(payload);
     try {
-      SUMMARY_CACHE.set(key, { at: Date.now(), data: payload });
+      SUMMARY_CACHE.set(key, { at: Date.now(), data: filled });
     } catch (_) {}
-    return res.json(payload);
+    return res.json(filled);
   };
 
   // If explicitly requested, prefer OpenRouter first

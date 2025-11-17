@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth');
 const marketRoutes = require('./routes/market');
 const startMarketSnapshotJob = require('./jobs/marketSnapshotJob');
 const startNSEStocksJob = require('./jobs/nseStocksJob');
+const startAISummariesJob = require('./jobs/aiSummariesJob');
 
 const app = express();
 const server = http.createServer(app);
@@ -125,3 +126,5 @@ server.listen(PORT, () => {
 startMarketSnapshotJob();
 // Schedule hourly NSE NIFTY 50 refresh to DB
 startNSEStocksJob();
+// Schedule daily AI summaries warm-up (configurable via env)
+startAISummariesJob();
