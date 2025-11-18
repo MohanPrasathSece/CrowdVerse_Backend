@@ -6,6 +6,7 @@ const express = require('express');
 const OpenAI = require('openai');
 const axios = require('axios');
 const router = express.Router();
+const { getIntelligenceData } = require('../jobs/intelligencePanelJob');
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -205,6 +206,32 @@ router.post('/', async (req, res) => {
     market_sentiment_summary: '—',
     final_summary: '—',
   });
-})
+});
+
+// GET /api/ai-summary/intelligence/:asset - Get cached intelligence panel data
+router.get('/intelligence/:asset', (req, res) => {
+  const asset = req.params.asset;
+  const cachedData = getIntelligenceData(asset);
+  
+  if (cachedData) {
+    return res.json(cachedData);
+  }
+  
+  // Return fallback data if no cache exists
+  return res.json({
+    global_news_summary: `No major news headlines specifically affecting ${asset} in the last 24 hours.`,
+    user_comments_summary: `Community commentary is limited for ${asset}. Treat sentiment signals cautiously.`,
+    market_sentiment_summary: `Market sentiment data is currently unavailable for ${asset}. Monitor price action and volume.`,
+    final_summary: `Overall, build a plan for ${asset}: define invalidation levels, position sizing, and news triggers.`,
+    generated_at: new Date().toISOString(),
+    data_points: {
+      comments_count: 0,
+      sentiment_votes: 0,
+      trade_votes: 0,
+      bullish_percent: 50,
+      buy_percent: 33.3
+    }
+  });
+});
 
 module.exports = router;
