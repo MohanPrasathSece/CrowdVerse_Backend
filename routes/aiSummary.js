@@ -6,7 +6,9 @@ const express = require('express');
 const OpenAI = require('openai');
 const axios = require('axios');
 const router = express.Router();
-const { getIntelligenceData } = require('../jobs/intelligencePanelJob');
+const { getIntelligenceData } = require('../jobs/intelligencePanelJobGemini');
+const geminiService = require('../services/geminiService');
+const { cryptoAssets, stockAssets } = require('../constants/marketAssets');
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -61,6 +63,31 @@ router.post('/', async (req, res) => {
     } catch (_) {}
     return res.json(filled);
   };
+
+  // Use Gemini AI as primary provider
+  try {
+    console.log(`🤖 [AI_SUMMARY] Using Gemini AI for ${asset_name}`);
+    const geminiAvailable = await geminiService.isAvailable();
+    
+    if (geminiAvailable) {
+      const prompt = `You are a financial research assistant. Summarize the following information about ${asset_name} into four concise sections with headers exactly in this order: Global News Summary, Community Comments Summary, Market Sentiment Summary, Final Takeaway. Keep each section short. If no recent news headlines are provided, use older but relevant widely-known events or market context; do not say news is unavailable.\n\nRecent News Headlines:\n${recent_news.join('\n')}\n\nUser Comments:\n${recent_comments.join('\n')}\n\nMarket Sentiment Data:\n${market_sentiment}`;
+      
+      const result = await geminiService.generateSummary(prompt);
+      
+      if (result && result.global_news_summary) {
+        console.log(`✅ [AI_SUMMARY] Gemini AI analysis completed for ${asset_name}`);
+        return sendAndCache({
+          global_news_summary: result.global_news_summary,
+          user_comments_summary: result.user_comments_summary,
+          market_sentiment_summary: result.market_sentiment_summary,
+          final_summary: result.final_summary,
+          analysis_provider: 'gemini'
+        });
+      }
+    }
+  } catch (error) {
+    console.error('❌ [AI_SUMMARY] Gemini AI error:', error);
+  }
 
   // If explicitly requested, prefer OpenRouter first
   if (AI_PROVIDER === 'openrouter' && OPENROUTER_API_KEY) {
@@ -211,12 +238,28 @@ router.post('/', async (req, res) => {
 // GET /api/ai-summary/intelligence/:asset - Get cached intelligence panel data
 router.get('/intelligence/:asset', (req, res) => {
   const asset = req.params.asset;
-  const cachedData = getIntelligenceData(asset);
+  const assetUpper = asset.toUpperCase();
+  console.log(`🔍 [API] Looking up intelligence data for asset: ${asset} (as ${assetUpper})`);
   
-  if (cachedData) {
-    return res.json(cachedData);
+  // Map short crypto symbols to full symbols
+  let fullSymbol = assetUpper;
+  const cryptoAsset = cryptoAssets.find(c => c.short === assetUpper);
+  if (cryptoAsset) {
+    fullSymbol = cryptoAsset.symbol;
   }
   
+  console.log(`🔍 [API] Mapped ${assetUpper} to ${fullSymbol}`);
+  
+  const cachedData = getIntelligenceData(fullSymbol);
+  
+  console.log(`🔍 [API] Cache check - ${fullSymbol}: ${cachedData ? 'found' : 'not found'}`);
+
+  if (cachedData) {
+    console.log(`✅ [API] Returning cached intelligence data for ${fullSymbol}`);
+    return res.json(cachedData);
+  }
+
+  console.log(`⚠️ [API] No cached data found for ${asset}, returning fallback`);
   // Return fallback data if no cache exists
   return res.json({
     global_news_summary: `No major news headlines specifically affecting ${asset} in the last 24 hours.`,

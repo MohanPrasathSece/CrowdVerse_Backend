@@ -4,6 +4,7 @@ const { protect } = require('../middleware/auth');
 const SentimentVote = require('../models/SentimentVote');
 const TradeIntentVote = require('../models/TradeIntentVote');
 const Comment = require('../models/Comment');
+const geminiService = require('../services/geminiService');
 
 /* ---------------- Sentiment Poll ---------------- */
 router.post('/:asset/sentiment', protect, async (req, res) => {
@@ -121,6 +122,24 @@ router.get('/:asset/intent', async (req, res) => {
   }
 });
 
+router.get('/:asset/intent/me', protect, async (req, res) => {
+  try {
+    const asset = String(req.params.asset).toUpperCase();
+    const userId = req.user.id;
+    
+    const vote = await TradeIntentVote.findOne({ asset, user: userId });
+    
+    if (!vote) {
+      return res.json({ intent: null });
+    }
+    
+    return res.json({ intent: vote.action });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to fetch user intent' });
+  }
+});
+
 /* ---------------- Comments ---------------- */
 router.post('/:asset/comments', protect, async (req, res) => {
   try {
@@ -128,7 +147,44 @@ router.post('/:asset/comments', protect, async (req, res) => {
     const { text } = req.body;
     if (!text?.trim()) return res.status(400).json({ message: 'Comment text required' });
 
-    const doc = await Comment.create({ asset, user: req.user._id, text: text.trim() });
+    // Analyze comment sentiment with Gemini AI
+    let sentimentAnalysis = null;
+    try {
+      const geminiAvailable = await geminiService.isAvailable();
+      if (geminiAvailable) {
+        const prompt = `Analyze the sentiment of this financial comment and provide a JSON response with:
+        1. sentiment: "bullish", "bearish", or "neutral"
+        2. confidence: a number from 0 to 1
+        3. key_points: array of main points mentioned
+        4. category: "technical", "fundamental", "news", or "general"
+        
+        Comment: "${text}"
+        
+        Respond with only valid JSON, no other text.`;
+        
+        const analysis = await geminiService.generateSummary(prompt);
+        if (analysis) {
+          try {
+            sentimentAnalysis = JSON.parse(analysis.final_summary || '{}');
+            console.log(`🤖 [COMMENT] Gemini analyzed comment sentiment: ${sentimentAnalysis.sentiment}`);
+          } catch (parseError) {
+            console.warn('⚠️ [COMMENT] Could not parse Gemini sentiment analysis');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [COMMENT] Gemini sentiment analysis failed:', error);
+    }
+
+    const doc = await Comment.create({ 
+      asset, 
+      user: req.user._id, 
+      text: text.trim(),
+      sentiment: sentimentAnalysis?.sentiment || null,
+      sentimentConfidence: sentimentAnalysis?.confidence || null,
+      keyPoints: sentimentAnalysis?.key_points || [],
+      category: sentimentAnalysis?.category || 'general'
+    });
 
     const io = req.app.get('io');
     if (io) io.to(asset).emit('asset_update', { type: 'comment', asset, commentId: doc._id });

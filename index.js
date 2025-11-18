@@ -11,7 +11,7 @@ const marketRoutes = require('./routes/market');
 const startMarketSnapshotJob = require('./jobs/marketSnapshotJob');
 const startNSEStocksJob = require('./jobs/nseStocksJob');
 const startAISummariesJob = require('./jobs/aiSummariesJob');
-const { intelligencePanelJob } = require('./jobs/intelligencePanelJob');
+const { intelligencePanelJob, runIntelligencePanelJob, INTELLIGENCE_CACHE } = require('./jobs/intelligencePanelJobGemini');
 
 const app = express();
 const server = http.createServer(app);
@@ -131,3 +131,42 @@ startNSEStocksJob();
 startAISummariesJob();
 // Schedule daily intelligence panel data generation at 3 AM
 intelligencePanelJob.start();
+
+// Manual trigger endpoint for intelligence job
+app.post('/api/intelligence/trigger', async (req, res) => {
+  try {
+    console.log('🤖 [API] Manual trigger for intelligence panel job...');
+    await runIntelligencePanelJob();
+    res.json({ 
+      success: true, 
+      message: 'Intelligence panel job triggered successfully',
+      cacheSize: INTELLIGENCE_CACHE.size 
+    });
+  } catch (error) {
+    console.error('❌ [API] Error triggering intelligence job:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Debug endpoint to check cache contents
+app.get('/api/intelligence/cache', (req, res) => {
+  const cacheContents = {};
+  for (const [key, value] of INTELLIGENCE_CACHE.entries()) {
+    cacheContents[key] = {
+      cached_at: new Date(value.at).toISOString(),
+      provider: value.data.analysis_provider || 'unknown',
+      has_news: !!value.data.global_news_summary,
+      has_comments: !!value.data.user_comments_summary,
+      has_sentiment: !!value.data.market_sentiment_summary,
+      has_final: !!value.data.final_summary,
+      generated_at: value.data.generated_at
+    };
+  }
+  res.json({
+    cache_size: INTELLIGENCE_CACHE.size,
+    cache_contents: cacheContents
+  });
+});

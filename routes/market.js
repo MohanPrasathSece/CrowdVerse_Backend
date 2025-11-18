@@ -6,6 +6,7 @@ const { cryptoAssets, stockAssets } = require('../constants/marketAssets');
 const { fetchCryptoQuotes, fetchStockQuotes } = require('../services/marketService');
 const Stock = require('../models/Stock');
 const { fetchNifty50 } = require('../services/nseService');
+const geminiService = require('../services/geminiService');
 
 // GET /api/market/quote?symbol=RELIANCE.NS
 router.get('/quote', async (req, res) => {
@@ -18,10 +19,147 @@ router.get('/quote', async (req, res) => {
 
     const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
     const { data } = await axios.get(url);
-    return res.json(data);
+    
+    // Add Gemini AI analysis for the quote
+    let aiInsights = null;
+    try {
+      const geminiAvailable = await geminiService.isAvailable();
+      if (geminiAvailable && data.c) {
+        console.log(`🤖 [MARKET] Using Gemini AI for ${symbol} analysis...`);
+        
+        // Create asset data for Gemini analysis
+        const assetData = {
+          assetSymbol: symbol,
+          assetName: symbol,
+          currentPrice: data.c,
+          change: data.d,
+          changePercent: data.dp,
+          userComments: [],
+          sentimentVotes: { bullish: 0, bearish: 0 },
+          tradeVotes: { buy: 0, sell: 0, hold: 0 }
+        };
+        
+        const analysis = await geminiService.generateIntelligenceAnalysis(assetData);
+        if (analysis && analysis.final_summary) {
+          const priceChange = data.c - data.pc;
+          const percentChange = (priceChange / data.pc) * 100;
+          const direction = percentChange >= 0 ? 'positive' : 'negative';
+          aiInsights = {
+            sentiment: direction === 'positive' ? 'bullish' : direction === 'negative' ? 'bearish' : 'neutral',
+            analysis: analysis.final_summary,
+            priceDirection: direction,
+            changePercent: percentChange
+          };
+          console.log(`🤖 [MARKET] Gemini analyzed ${symbol}: ${aiInsights.sentiment}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [MARKET] Gemini analysis failed:', error);
+    }
+    
+    return res.json({
+      ...data,
+      aiInsights
+    });
   } catch (err) {
     console.error(err?.response?.data || err.message);
     return res.status(500).json({ message: 'Failed to fetch quote' });
+  }
+});
+
+// GET /api/market/analysis?symbol=RELIANCE.NS
+router.get('/analysis', async (req, res) => {
+  try {
+    const { symbol, timeframe = '1d' } = req.query;
+    if (!symbol) return res.status(400).json({ message: 'symbol is required' });
+
+    const geminiAvailable = await geminiService.isAvailable();
+    if (!geminiAvailable) {
+      return res.status(503).json({ message: 'AI analysis service unavailable' });
+    }
+
+    // Fetch recent price data
+    const token = process.env.FINNHUB_API_KEY;
+    if (!token) return res.status(500).json({ message: 'FINNHUB_API_KEY not configured' });
+
+    const [quoteData, newsData] = await Promise.all([
+      axios.get(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`),
+      axios.get(`https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(symbol)}&from=${new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&token=${token}`)
+    ]);
+
+    const data = quoteData.data;
+    const news = newsData.data.slice(0, 5); // Get top 5 news items
+
+    const prompt = `Provide a comprehensive technical and fundamental analysis for ${symbol} based on:
+    
+    Current Market Data:
+    - Price: $${data.c || 'N/A'}
+    - Change: ${data.pc ? ((data.c - data.pc) / data.pc * 100).toFixed(2) + '%' : 'N/A'}
+    - High: $${data.h || 'N/A'}
+    - Low: $${data.l || 'N/A'}
+    
+    Recent News Headlines:
+    ${news.map(n => `- ${n.headline}`).join('\n')}
+    
+    Provide analysis in JSON format with:
+    {
+      "technical_outlook": "bullish/bearish/neutral",
+      "support_levels": [numbers],
+      "resistance_levels": [numbers],
+      "key_catalysts": ["points"],
+      "risk_factors": ["points"],
+      "short_term_target": number,
+      "confidence_score": 0-1,
+      "summary": "brief summary"
+    }`;
+
+    // Create asset data for Gemini analysis
+    const assetData = {
+      assetSymbol: symbol,
+      assetName: symbol,
+      currentPrice: data.c,
+      change: data.d,
+      changePercent: data.dp,
+      userComments: [],
+      sentimentVotes: { bullish: 0, bearish: 0 },
+      tradeVotes: { buy: 0, sell: 0, hold: 0 }
+    };
+    
+    const analysis = await geminiService.generateIntelligenceAnalysis(assetData);
+    
+    if (analysis && analysis.final_summary) {
+      try {
+        // For market analysis, we'll use the final_summary directly
+        return res.json({
+          symbol,
+          timestamp: new Date().toISOString(),
+          currentPrice: data.c,
+          change: data.pc ? ((data.c - data.pc) / data.pc * 100).toFixed(2) : null,
+          analysis: {
+            summary: analysis.final_summary,
+            market_sentiment: analysis.market_sentiment_summary,
+            news_summary: analysis.global_news_summary,
+            provider: 'gemini'
+          },
+          provider: 'gemini'
+        });
+      } catch (parseError) {
+        // If parsing fails, return raw analysis
+        return res.json({
+          symbol,
+          timestamp: new Date().toISOString(),
+          currentPrice: data.c,
+          change: data.pc ? ((data.c - data.pc) / data.pc * 100).toFixed(2) : null,
+          analysis: { summary: analysis.final_summary },
+          provider: 'gemini'
+        });
+      }
+    }
+
+    return res.status(500).json({ message: 'Failed to generate analysis' });
+  } catch (err) {
+    console.error(err?.response?.data || err.message);
+    return res.status(500).json({ message: 'Failed to fetch analysis' });
   }
 });
 
