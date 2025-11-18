@@ -218,6 +218,8 @@ async function seedProductionIntelligenceData() {
     
     // Check if data already exists
     const existingCount = await Intelligence.countDocuments();
+    console.log(`🔍 Found ${existingCount} existing intelligence records`);
+    
     if (existingCount > 0) {
       console.log(`✅ Intelligence data already exists (${existingCount} records). Skipping seeding.`);
       return;

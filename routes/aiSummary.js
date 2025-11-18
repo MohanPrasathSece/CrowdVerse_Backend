@@ -312,10 +312,8 @@ router.get('/intelligence/:asset', async (req, res) => {
       expires_at: { $gt: new Date() } // Only return non-expired data
     });
     
-    console.log(`🔍 [API] Database check - ${fullSymbol}: ${intelligenceData ? 'found' : 'not found'}`);
-
     if (intelligenceData) {
-      console.log(`✅ [API] Returning database intelligence data for ${fullSymbol}`);
+      console.log(`✅ [API] Found database data for ${asset} (${fullSymbol})`);
       return res.json({
         global_news_summary: intelligenceData.global_news_summary,
         user_comments_summary: intelligenceData.user_comments_summary,
@@ -327,7 +325,9 @@ router.get('/intelligence/:asset', async (req, res) => {
       });
     }
 
-    console.log(`⚠️ [API] No database data found for ${asset}, returning fallback`);
+    console.log(`⚠️ [API] No database data found for ${asset} (${fullSymbol}), returning fallback`);
+    console.log(`🔍 [API] Database connection status: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Not connected'}`);
+    
     // Return fallback data if no database data exists
     return res.json({
       global_news_summary: `No major news headlines specifically affecting ${asset} in the last 24 hours.`,

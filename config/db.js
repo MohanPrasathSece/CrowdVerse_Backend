@@ -14,11 +14,23 @@ const connectDB = async () => {
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     
     // Seed production intelligence data if needed
-    await seedProductionIntelligenceData();
+    try {
+      console.log('🌱 Checking production intelligence data seeding...');
+      await seedProductionIntelligenceData();
+      console.log('✅ Production intelligence data seeding check complete');
+    } catch (seedingError) {
+      console.error('⚠️  Error during intelligence data seeding:', seedingError.message);
+      console.log('⚠️  Intelligence panel may show fallback data until seeding is resolved');
+      // Don't exit the process, just log the error and continue
+    }
     
   } catch (error) {
-    console.error(`❌ Error: ${error.message}`);
-    process.exit(1);
+    console.error(`❌ MongoDB connection error: ${error.message}`);
+    console.log('⚠️  Intelligence panel will use fallback data without database connection');
+    // Don't exit in production - allow server to run with fallback data
+    if (process.env.NODE_ENV === 'development') {
+      process.exit(1);
+    }
   }
 };
 
