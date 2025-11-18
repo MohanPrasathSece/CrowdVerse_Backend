@@ -33,15 +33,11 @@ const intelligenceSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  data_points: {
-    comments_count: { type: Number, default: 0 },
-    sentiment_votes: { type: Number, default: 0 },
-    trade_votes: { type: Number, default: 0 },
-    bullish_percent: { type: Number, default: 0 },
-    buy_percent: { type: Number, default: 0 },
-    bearish_percent: { type: Number, default: 0 },
-    sell_percent: { type: Number, default: 0 }
-  },
+  data_points: [{
+    type: { type: String, required: true },
+    value: { type: mongoose.Schema.Types.Mixed, required: true },
+    label: { type: String, required: true }
+  }],
   analysis_provider: {
     type: String,
     default: 'dummy'
