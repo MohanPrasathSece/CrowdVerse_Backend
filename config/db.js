@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { seedProductionIntelligenceData } = require('../utils/seedProductionData');
 
 const connectDB = async () => {
   try {
@@ -11,6 +12,10 @@ const connectDB = async () => {
     const conn = await mongoose.connect(uri);
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    
+    // Seed production intelligence data if needed
+    await seedProductionIntelligenceData();
+    
   } catch (error) {
     console.error(`❌ Error: ${error.message}`);
     process.exit(1);
