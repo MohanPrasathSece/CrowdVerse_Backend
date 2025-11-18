@@ -75,11 +75,36 @@ const analyzeAssetDataForGemini = async (assetSymbol) => {
     };
 
     // Use Gemini AI for analysis
-    const geminiAnalysis = await geminiService.generateIntelligenceAnalysis(assetData);
+    console.log(`🤖 [INTELLIGENCE] Generating AI analysis for ${assetSymbol} using Gemini...`);
+    const analysis = await geminiService.generateIntelligenceAnalysis(assetData);
     
+    if (analysis && analysis.final_summary) {
+      console.log(`✅ [INTELLIGENCE] AI analysis completed for ${assetSymbol}`);
+      console.log(`📊 [AI_ANALYSIS_DATA] Asset: ${assetSymbol}`);
+      console.log(`📰 [AI_ANALYSIS_DATA] Global News: ${analysis.global_news_summary}`);
+      console.log(`💬 [AI_ANALYSIS_DATA] User Comments: ${analysis.user_comments_summary}`);
+      console.log(`📈 [AI_ANALYSIS_DATA] Market Sentiment: ${analysis.market_sentiment_summary}`);
+      console.log(`🎯 [AI_ANALYSIS_DATA] Final Summary: ${analysis.final_summary}`);
+      
+      INTELLIGENCE_CACHE.set(assetSymbol.toUpperCase(), {
+        ...analysis,
+        generated_at: new Date().toISOString(),
+        data_points: {
+          comments_count: assetData.userComments.length,
+          sentiment_votes: Object.values(assetData.sentimentVotes).reduce((a, b) => a + b, 0),
+          trade_votes: Object.values(assetData.tradeVotes).reduce((a, b) => a + b, 0),
+          bullish_percent: calculatePercentage(assetData.sentimentVotes.bullish, assetData.sentimentVotes),
+          buy_percent: calculatePercentage(assetData.tradeVotes.buy, assetData.tradeVotes)
+        },
+        at: Date.now()
+      });
+    } else {
+      console.log(`⚠️ [INTELLIGENCE] No analysis generated for ${assetSymbol}`);
+    }
+
     // Add data points for tracking
     return {
-      ...geminiAnalysis,
+      ...analysis,
       data_points: {
         comments_count: recentComments.length,
         sentiment_votes: totalSentiment,

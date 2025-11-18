@@ -8,7 +8,9 @@ const axios = require('axios');
 const router = express.Router();
 const { getIntelligenceData } = require('../jobs/intelligencePanelJobGemini');
 const geminiService = require('../services/geminiService');
+const { getAIAnalysisData } = require('../jobs/aiAnalysisScheduler');
 const { cryptoAssets, stockAssets } = require('../constants/marketAssets');
+const Intelligence = require('../models/Intelligence');
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -30,6 +32,25 @@ router.post('/', async (req, res) => {
   const AI_PROVIDER = String(process.env.AI_PROVIDER || '').toLowerCase();
   const refresh = String(req.query.refresh || '').toLowerCase() === 'true' || Boolean(refreshBody);
   const key = String(asset_name || '').toUpperCase();
+
+  // Check if we have fresh data from the scheduler first
+  const schedulerData = getAIAnalysisData(asset_name);
+  if (schedulerData && !refresh) {
+    console.log(`📋 [AI_SUMMARY] Using scheduler AI analysis for ${asset_name}`);
+    const result = {
+      global_news_summary: schedulerData.global_news_summary,
+      user_comments_summary: schedulerData.user_comments_summary,
+      market_sentiment_summary: schedulerData.market_sentiment_summary,
+      final_summary: schedulerData.final_summary,
+      generated_at: schedulerData.generated_at,
+      analysis_provider: schedulerData.analysis_provider,
+      asset_symbol: schedulerData.asset_symbol,
+      asset_name: schedulerData.asset_name,
+      processing_time_ms: schedulerData.processing_time_ms,
+      data_points: schedulerData.data_points
+    };
+    return sendAndCache(result);
+  }
 
   // Serve from cache if fresh and not forced to refresh
   const cached = SUMMARY_CACHE.get(key);
@@ -72,10 +93,23 @@ router.post('/', async (req, res) => {
     if (geminiAvailable) {
       const prompt = `You are a financial research assistant. Summarize the following information about ${asset_name} into four concise sections with headers exactly in this order: Global News Summary, Community Comments Summary, Market Sentiment Summary, Final Takeaway. Keep each section short. If no recent news headlines are provided, use older but relevant widely-known events or market context; do not say news is unavailable.\n\nRecent News Headlines:\n${recent_news.join('\n')}\n\nUser Comments:\n${recent_comments.join('\n')}\n\nMarket Sentiment Data:\n${market_sentiment}`;
       
-      const result = await geminiService.generateSummary(prompt);
+      const result = await geminiService.generateIntelligenceAnalysis({
+        assetSymbol: asset_name,
+        assetName: asset_name,
+        recentNews: recent_news,
+        userComments: recent_comments.join('\n'),
+        sentimentData: market_sentiment ? { totalSentimentVotes: 10, bullishPercent: 75 } : {},
+        marketData: market_sentiment ? { totalTradeVotes: 5, buyPercent: 60 } : {}
+      });
       
       if (result && result.global_news_summary) {
         console.log(`✅ [AI_SUMMARY] Gemini AI analysis completed for ${asset_name}`);
+        console.log(`📊 [AI_ANALYSIS_DATA] Provider: gemini`);
+        console.log(`📰 [AI_ANALYSIS_DATA] Global News Summary: ${result.global_news_summary}`);
+        console.log(`💬 [AI_ANALYSIS_DATA] User Comments Summary: ${result.user_comments_summary}`);
+        console.log(`📈 [AI_ANALYSIS_DATA] Market Sentiment Summary: ${result.market_sentiment_summary}`);
+        console.log(`🎯 [AI_ANALYSIS_DATA] Final Summary: ${result.final_summary}`);
+        
         return sendAndCache({
           global_news_summary: result.global_news_summary,
           user_comments_summary: result.user_comments_summary,
@@ -235,46 +269,87 @@ router.post('/', async (req, res) => {
   });
 });
 
-// GET /api/ai-summary/intelligence/:asset - Get cached intelligence panel data
-router.get('/intelligence/:asset', (req, res) => {
-  const asset = req.params.asset;
-  const assetUpper = asset.toUpperCase();
-  console.log(`🔍 [API] Looking up intelligence data for asset: ${asset} (as ${assetUpper})`);
-  
-  // Map short crypto symbols to full symbols
-  let fullSymbol = assetUpper;
-  const cryptoAsset = cryptoAssets.find(c => c.short === assetUpper);
-  if (cryptoAsset) {
-    fullSymbol = cryptoAsset.symbol;
-  }
-  
-  console.log(`🔍 [API] Mapped ${assetUpper} to ${fullSymbol}`);
-  
-  const cachedData = getIntelligenceData(fullSymbol);
-  
-  console.log(`🔍 [API] Cache check - ${fullSymbol}: ${cachedData ? 'found' : 'not found'}`);
-
-  if (cachedData) {
-    console.log(`✅ [API] Returning cached intelligence data for ${fullSymbol}`);
-    return res.json(cachedData);
-  }
-
-  console.log(`⚠️ [API] No cached data found for ${asset}, returning fallback`);
-  // Return fallback data if no cache exists
-  return res.json({
-    global_news_summary: `No major news headlines specifically affecting ${asset} in the last 24 hours.`,
-    user_comments_summary: `Community commentary is limited for ${asset}. Treat sentiment signals cautiously.`,
-    market_sentiment_summary: `Market sentiment data is currently unavailable for ${asset}. Monitor price action and volume.`,
-    final_summary: `Overall, build a plan for ${asset}: define invalidation levels, position sizing, and news triggers.`,
-    generated_at: new Date().toISOString(),
-    data_points: {
-      comments_count: 0,
-      sentiment_votes: 0,
-      trade_votes: 0,
-      bullish_percent: 50,
-      buy_percent: 33.3
+// GET /api/ai-summary/intelligence/:asset - Get intelligence panel data from database
+router.get('/intelligence/:asset', async (req, res) => {
+  try {
+    const asset = req.params.asset;
+    const assetUpper = asset.toUpperCase();
+    console.log(`🔍 [API] Looking up intelligence data for asset: ${asset} (as ${assetUpper})`);
+    
+    // Map asset names/symbols to full database symbols
+    let fullSymbol = assetUpper;
+    
+    // Check if it's a crypto name (like "Ethereum", "Bitcoin") or short symbol (like "ETH", "BTC")
+    const cryptoAsset = cryptoAssets.find(c => 
+      c.name.toUpperCase() === assetUpper || 
+      c.short.toUpperCase() === assetUpper ||
+      c.symbol.toUpperCase() === assetUpper
+    );
+    
+    if (cryptoAsset) {
+      fullSymbol = cryptoAsset.symbol; // Use full symbol like "BINANCE:ETHUSDT"
+      console.log(`🔍 [API] Found crypto asset: ${cryptoAsset.name} (${cryptoAsset.short}) -> ${fullSymbol}`);
+    } else {
+      // If not found in crypto assets, check if it's a stock
+      const stockAsset = stockAssets.find(s => 
+        s.symbol.toUpperCase() === assetUpper ||
+        s.name.toUpperCase() === assetUpper
+      );
+      
+      if (stockAsset) {
+        fullSymbol = stockAsset.symbol; // Use stock symbol like "RELIANCE"
+        console.log(`🔍 [API] Found stock asset: ${stockAsset.name} -> ${fullSymbol}`);
+      } else {
+        console.log(`🔍 [API] Asset ${assetUpper} not found in crypto or stock assets, using as-is`);
+      }
     }
-  });
+    
+    console.log(`🔍 [API] Mapped ${assetUpper} to ${fullSymbol}`);
+    
+    // Query database for intelligence data
+    const intelligenceData = await Intelligence.findOne({ 
+      asset: fullSymbol,
+      expires_at: { $gt: new Date() } // Only return non-expired data
+    });
+    
+    console.log(`🔍 [API] Database check - ${fullSymbol}: ${intelligenceData ? 'found' : 'not found'}`);
+
+    if (intelligenceData) {
+      console.log(`✅ [API] Returning database intelligence data for ${fullSymbol}`);
+      return res.json({
+        global_news_summary: intelligenceData.global_news_summary,
+        user_comments_summary: intelligenceData.user_comments_summary,
+        market_sentiment_summary: intelligenceData.market_sentiment_summary,
+        final_summary: intelligenceData.final_summary,
+        generated_at: intelligenceData.generated_at,
+        data_points: intelligenceData.data_points,
+        analysis_provider: intelligenceData.analysis_provider
+      });
+    }
+
+    console.log(`⚠️ [API] No database data found for ${asset}, returning fallback`);
+    // Return fallback data if no database data exists
+    return res.json({
+      global_news_summary: `No major news headlines specifically affecting ${asset} in the last 24 hours.`,
+      user_comments_summary: `Community commentary is limited for ${asset}. Treat sentiment signals cautiously.`,
+      market_sentiment_summary: `Market sentiment data is currently unavailable for ${asset}. Monitor price action and volume.`,
+      final_summary: `Overall, build a plan for ${asset}: define invalidation levels, position sizing, and news triggers.`,
+      generated_at: new Date().toISOString(),
+      data_points: {
+        comments_count: 0,
+        sentiment_votes: 0,
+        trade_votes: 0,
+        bullish_percent: 50,
+        buy_percent: 33.3
+      }
+    });
+  } catch (error) {
+    console.error(`❌ [API] Error fetching intelligence data for ${req.params.asset}:`, error.message);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to fetch intelligence data'
+    });
+  }
 });
 
 module.exports = router;

@@ -118,10 +118,22 @@ io.on('connection', (socket) => {
 
 app.set('io', io);
 
-const PORT = process.env.SERVER_PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+  // Initialize AI Analysis Scheduler
+  const { initializeAIAnalysis, hourlyAIJob } = require('./jobs/aiAnalysisScheduler');
+  
+  // Start the scheduler in the background
+  initializeAIAnalysis().catch(err => {
+    console.error('⚠️ Failed to initialize AI analysis scheduler:', err.message);
+  });
+  
+  // Start hourly AI analysis job
+  hourlyAIJob.start();
+
+  const PORT = process.env.SERVER_PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log('🤖 AI Analysis Scheduler initialized and running hourly');
+  });
 
 // Schedule hourly market snapshots if env configured
 startMarketSnapshotJob();

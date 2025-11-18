@@ -116,21 +116,31 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
 
     // Split by section headers (case insensitive, handle markdown formatting)
     const sectionRegex = /\*\*GLOBAL NEWS SUMMARY:\*\*|\*\*COMMUNITY COMMENTS SUMMARY:\*\*|\*\*MARKET SENTIMENT SUMMARY:\*\*|\*\*FINAL TAKEAWAY:\*\*|GLOBAL NEWS SUMMARY:|COMMUNITY COMMENTS SUMMARY:|MARKET SENTIMENT SUMMARY:|FINAL TAKEAWAY:/gi;
-    const parts = text.split(sectionRegex).filter(part => part.trim());
+    const parts = text.split(sectionRegex);
     const headers = text.match(sectionRegex);
 
     console.log(`🤖 [GEMINI] Parsing found ${headers?.length || 0} headers and ${parts.length} parts`);
-    
-    if (headers && parts.length > 0) {
-      headers.forEach((header, index) => {
-        const content = parts[index] || '';
+
+    // The first part contains any content before the first header
+    let currentSection = '';
+    let sectionIndex = 0;
+
+    if (headers && parts.length > 1) {
+      // Start from index 1 since index 0 is content before first header
+      for (let i = 0; i < headers.length && i + 1 < parts.length; i++) {
+        const header = headers[i];
+        const content = parts[i + 1] || '';
+        
         // Clean up content - remove extra newlines and markdown formatting
         let cleanContent = content.replace(/\n\n+/g, ' ').trim();
         // Remove markdown bold formatting from content
         cleanContent = cleanContent.replace(/\*\*/g, '');
         
+        // Remove any bullet points and clean up
+        cleanContent = cleanContent.replace(/^\*\s*/gm, '').replace(/^\d+\.\s*/gm, '');
+
         console.log(`🤖 [GEMINI] Processing section: ${header}`);
-        
+
         if (header.toUpperCase().includes('GLOBAL NEWS')) {
           sections.global_news_summary = cleanContent;
         } else if (header.toUpperCase().includes('COMMUNITY COMMENTS')) {
@@ -140,13 +150,49 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
         } else if (header.toUpperCase().includes('FINAL TAKEAWAY')) {
           sections.final_summary = cleanContent;
         }
-      });
+      }
     } else {
       console.warn(`⚠️ [GEMINI] Could not parse sections properly. Headers found: ${headers?.length || 0}, Parts: ${parts.length}`);
-      // Fallback: try to extract any meaningful content
-      const cleanText = text.replace(/\*\*/g, '').replace(/\n\n+/g, ' ').trim();
-      if (cleanText) {
-        sections.global_news_summary = cleanText.substring(0, 500) + '...';
+      
+      // Fallback: try to extract content using a different approach
+      const lines = text.split('\n').filter(line => line.trim());
+      let currentSection = '';
+      let contentBuffer = [];
+      
+      for (const line of lines) {
+        if (line.toUpperCase().includes('GLOBAL NEWS SUMMARY')) {
+          if (currentSection === 'global_news' && contentBuffer.length > 0) {
+            sections.global_news_summary = contentBuffer.join(' ').replace(/\*\*/g, '').trim();
+          }
+          currentSection = 'global_news';
+          contentBuffer = [];
+        } else if (line.toUpperCase().includes('COMMUNITY COMMENTS SUMMARY')) {
+          if (currentSection === 'comments' && contentBuffer.length > 0) {
+            sections.user_comments_summary = contentBuffer.join(' ').replace(/\*\*/g, '').trim();
+          }
+          currentSection = 'comments';
+          contentBuffer = [];
+        } else if (line.toUpperCase().includes('MARKET SENTIMENT SUMMARY')) {
+          if (currentSection === 'sentiment' && contentBuffer.length > 0) {
+            sections.market_sentiment_summary = contentBuffer.join(' ').replace(/\*\*/g, '').trim();
+          }
+          currentSection = 'sentiment';
+          contentBuffer = [];
+        } else if (line.toUpperCase().includes('FINAL TAKEAWAY')) {
+          if (currentSection === 'final' && contentBuffer.length > 0) {
+            sections.final_summary = contentBuffer.join(' ').replace(/\*\*/g, '').trim();
+          }
+          currentSection = 'final';
+          contentBuffer = [];
+        } else if (line.trim() && !line.startsWith('**') && !line.match(/^\d+\.\s*/)) {
+          // This is content, add to buffer
+          contentBuffer.push(line.trim());
+        }
+      }
+      
+      // Don't forget the last section
+      if (currentSection === 'final' && contentBuffer.length > 0) {
+        sections.final_summary = contentBuffer.join(' ').replace(/\*\*/g, '').trim();
       }
     }
 
