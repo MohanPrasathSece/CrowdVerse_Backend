@@ -11,6 +11,7 @@ const geminiService = require('../services/geminiService');
 const { getAIAnalysisData } = require('../jobs/aiAnalysisScheduler');
 const { cryptoAssets, stockAssets } = require('../constants/marketAssets');
 const Intelligence = require('../models/Intelligence');
+const mongoose = require('mongoose');
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
