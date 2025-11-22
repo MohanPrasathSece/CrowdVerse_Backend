@@ -288,8 +288,9 @@ router.get('/intelligence/:asset', async (req, res) => {
     );
     
     if (cryptoAsset) {
-      fullSymbol = cryptoAsset.symbol; // Use full symbol like "BINANCE:ETHUSDT"
-      console.log(`🔍 [API] Found crypto asset: ${cryptoAsset.name} (${cryptoAsset.short}) -> ${fullSymbol}`);
+      // For crypto assets, use the short symbol (BTC, ETH) as that's how we stored it
+      fullSymbol = cryptoAsset.short || cryptoAsset.symbol.split(':')[1];
+      console.log(`🔍 [API] Found crypto asset: ${cryptoAsset.name} -> ${fullSymbol}`);
     } else {
       // If not found in crypto assets, check if it's a stock
       const stockAsset = stockAssets.find(s => 
