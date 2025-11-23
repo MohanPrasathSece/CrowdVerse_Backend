@@ -5,6 +5,7 @@ const Comment = require('../models/Comment');
 const SentimentVote = require('../models/SentimentVote');
 const TradeIntentVote = require('../models/TradeIntentVote');
 const geminiService = require('../services/geminiService');
+const Intelligence = require('../models/Intelligence');
 require('dotenv').config();
 
 // Cache for intelligence panel data (24h TTL)
@@ -102,6 +103,35 @@ const analyzeAssetDataForGemini = async (assetSymbol) => {
       console.log(`⚠️ [INTELLIGENCE] No analysis generated for ${assetSymbol}`);
     }
 
+    // Store in database
+    try {
+      await Intelligence.findOneAndUpdate(
+        { asset: assetSymbol.toUpperCase() },
+        {
+          asset: assetSymbol.toUpperCase(),
+          assetType: assetSymbol.length <= 5 && assetSymbol !== 'RELIANCE' && assetSymbol !== 'INFOSYS' ? 'crypto' : 'stock', // Simple heuristic
+          global_news_summary: analysis.global_news_summary,
+          user_comments_summary: analysis.user_comments_summary,
+          market_sentiment_summary: analysis.market_sentiment_summary,
+          final_summary: analysis.final_summary,
+          data_points: [
+            { type: 'comments_count', value: recentComments.length, label: 'Comments Count' },
+            { type: 'sentiment_votes', value: totalSentiment, label: 'Sentiment Votes' },
+            { type: 'trade_votes', value: totalTrade, label: 'Trade Votes' },
+            { type: 'bullish_percent', value: parseFloat(bullishPercent), label: 'Bullish Percentage' },
+            { type: 'buy_percent', value: parseFloat(buyPercent), label: 'Buy Percentage' }
+          ],
+          analysis_provider: analysis.analysis_provider || 'gemini',
+          generated_at: new Date(),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`💾 [INTELLIGENCE] Saved to database: ${assetSymbol}`);
+    } catch (dbError) {
+      console.error(`❌ [INTELLIGENCE] Database save failed for ${assetSymbol}:`, dbError.message);
+    }
+
     // Add data points for tracking
     return {
       ...analysis,
@@ -162,7 +192,7 @@ const generateFallbackAnalysis = async (assetSymbol) => {
     const totalTrade = buyCount + sellCount + holdCount;
     const buyPercent = totalTrade > 0 ? (buyCount / totalTrade * 100).toFixed(1) : 33.3;
 
-    return {
+    const fallbackAnalysis = {
       global_news_summary: `No major news headlines specifically affecting ${assetSymbol} in the last 24 hours.`,
       user_comments_summary: recentComments.length > 0 
         ? `Recent community activity shows ${recentComments.length} comments discussing various aspects of ${assetSymbol}.`
@@ -181,6 +211,37 @@ const generateFallbackAnalysis = async (assetSymbol) => {
         buy_percent: parseFloat(buyPercent)
       }
     };
+
+    // Store in database
+    try {
+      await Intelligence.findOneAndUpdate(
+        { asset: assetSymbol.toUpperCase() },
+        {
+          asset: assetSymbol.toUpperCase(),
+          assetType: assetSymbol.length <= 5 && assetSymbol !== 'RELIANCE' && assetSymbol !== 'INFOSYS' ? 'crypto' : 'stock',
+          global_news_summary: fallbackAnalysis.global_news_summary,
+          user_comments_summary: fallbackAnalysis.user_comments_summary,
+          market_sentiment_summary: fallbackAnalysis.market_sentiment_summary,
+          final_summary: fallbackAnalysis.final_summary,
+          data_points: [
+            { type: 'comments_count', value: fallbackAnalysis.data_points.comments_count, label: 'Comments Count' },
+            { type: 'sentiment_votes', value: fallbackAnalysis.data_points.sentiment_votes, label: 'Sentiment Votes' },
+            { type: 'trade_votes', value: fallbackAnalysis.data_points.trade_votes, label: 'Trade Votes' },
+            { type: 'bullish_percent', value: fallbackAnalysis.data_points.bullish_percent, label: 'Bullish Percentage' },
+            { type: 'buy_percent', value: fallbackAnalysis.data_points.buy_percent, label: 'Buy Percentage' }
+          ],
+          analysis_provider: fallbackAnalysis.analysis_provider,
+          generated_at: new Date(),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`💾 [INTELLIGENCE] Saved fallback to database: ${assetSymbol}`);
+    } catch (dbError) {
+      console.error(`❌ [INTELLIGENCE] Database save failed for ${assetSymbol}:`, dbError.message);
+    }
+
+    return fallbackAnalysis;
   } catch (error) {
     console.error(`Fallback analysis failed for ${assetSymbol}:`, error.message);
     return null;
@@ -242,7 +303,8 @@ const intelligencePanelJob = cron.schedule('0 3 * * *', async () => {
     
     for (const asset of allAssets) {
       const assetStartTime = Date.now();
-      console.log(`🤖 [INTELLIGENCE] Processing ${asset.symbol} (${asset.type})...`);
+      const assetSymbol = asset.type === 'crypto' ? asset.short : asset.symbol; // Use short for crypto, full symbol for stocks
+      console.log(`🤖 [INTELLIGENCE] Processing ${assetSymbol} (${asset.type})...`);
       
       try {
         let summary;
@@ -250,44 +312,44 @@ const intelligencePanelJob = cron.schedule('0 3 * * *', async () => {
         // Try Gemini first, fallback to basic analysis if it fails
         if (geminiAvailable) {
           try {
-            console.log(`🤖 [INTELLIGENCE] Using Gemini AI for ${asset.symbol}...`);
-            summary = await analyzeAssetDataForGemini(asset.symbol);
+            console.log(`🤖 [INTELLIGENCE] Using Gemini AI for ${assetSymbol}...`);
+            summary = await analyzeAssetDataForGemini(assetSymbol);
             if (!summary) {
-              console.warn(`⚠️ [INTELLIGENCE] Gemini analysis returned null for ${asset.symbol}, trying fallback`);
-              summary = await generateFallbackAnalysis(asset.symbol);
+              console.warn(`⚠️ [INTELLIGENCE] Gemini analysis returned null for ${assetSymbol}, trying fallback`);
+              summary = await generateFallbackAnalysis(assetSymbol);
               fallbackCount++;
             } else {
               geminiCount++;
             }
           } catch (geminiError) {
-            console.warn(`⚠️ [INTELLIGENCE] Gemini analysis failed for ${asset.symbol}: ${geminiError.message}, using fallback`);
-            summary = await generateFallbackAnalysis(asset.symbol);
+            console.warn(`⚠️ [INTELLIGENCE] Gemini analysis failed for ${assetSymbol}: ${geminiError.message}, using fallback`);
+            summary = await generateFallbackAnalysis(assetSymbol);
             fallbackCount++;
           }
         } else {
-          console.log(`🤖 [INTELLIGENCE] Using fallback analysis for ${asset.symbol}...`);
-          summary = await generateFallbackAnalysis(asset.symbol);
+          console.log(`🤖 [INTELLIGENCE] Using fallback analysis for ${assetSymbol}...`);
+          summary = await generateFallbackAnalysis(assetSymbol);
           fallbackCount++;
         }
         
         if (summary) {
           // Cache the summary
-          INTELLIGENCE_CACHE.set(asset.symbol.toUpperCase(), {
+          INTELLIGENCE_CACHE.set(assetSymbol.toUpperCase(), {
             at: Date.now(),
             data: summary
           });
 
           const provider = summary.analysis_provider || 'unknown';
           const assetDuration = Date.now() - assetStartTime;
-          console.log(`✅ [INTELLIGENCE] Generated intelligence for ${asset.symbol} (${asset.type}) using ${provider} in ${assetDuration}ms`);
+          console.log(`✅ [INTELLIGENCE] Generated intelligence for ${assetSymbol} (${asset.type}) using ${provider} in ${assetDuration}ms`);
           successCount++;
         } else {
-          console.log(`⚠️ [INTELLIGENCE] Failed to generate intelligence for ${asset.symbol}`);
+          console.log(`⚠️ [INTELLIGENCE] Failed to generate intelligence for ${assetSymbol}`);
           failureCount++;
         }
       } catch (error) {
         const assetDuration = Date.now() - assetStartTime;
-        console.error(`❌ [INTELLIGENCE] Error processing ${asset.symbol} after ${assetDuration}ms:`, error.message);
+        console.error(`❌ [INTELLIGENCE] Error processing ${assetSymbol} after ${assetDuration}ms:`, error.message);
         failureCount++;
       }
     }
@@ -335,7 +397,7 @@ const runIntelligencePanelJob = async () => {
 
     // Get all assets (crypto + stocks)
     const allAssets = [
-      ...cryptoAssets.map(asset => ({ symbol: asset.symbol, name: asset.name, type: 'crypto' })),
+      ...cryptoAssets.map(asset => ({ symbol: asset.symbol, name: asset.name, type: 'crypto', short: asset.short })),
       ...stockAssets.map(asset => ({ symbol: asset.symbol, name: asset.name, type: 'stock' }))
     ];
 
@@ -343,35 +405,36 @@ const runIntelligencePanelJob = async () => {
     
     for (const asset of allAssets) {
       try {
+        const assetSymbol = asset.type === 'crypto' ? asset.short : asset.symbol; // Use short for crypto, full symbol for stocks
         let summary;
         
         // Try Gemini first, fallback to basic analysis if it fails
         if (geminiAvailable) {
           try {
-            summary = await analyzeAssetDataForGemini(asset.symbol);
+            summary = await analyzeAssetDataForGemini(assetSymbol);
             if (!summary) {
-              console.warn(`⚠️ Gemini analysis returned null for ${asset.symbol}, trying fallback`);
-              summary = await generateFallbackAnalysis(asset.symbol);
+              console.warn(`⚠️ Gemini analysis returned null for ${assetSymbol}, trying fallback`);
+              summary = await generateFallbackAnalysis(assetSymbol);
             }
           } catch (geminiError) {
-            console.warn(`⚠️ Gemini analysis failed for ${asset.symbol}: ${geminiError.message}, using fallback`);
-            summary = await generateFallbackAnalysis(asset.symbol);
+            console.warn(`⚠️ Gemini analysis failed for ${assetSymbol}: ${geminiError.message}, using fallback`);
+            summary = await generateFallbackAnalysis(assetSymbol);
           }
         } else {
-          summary = await generateFallbackAnalysis(asset.symbol);
+          summary = await generateFallbackAnalysis(assetSymbol);
         }
         
         if (summary) {
           // Cache the summary
-          INTELLIGENCE_CACHE.set(asset.symbol.toUpperCase(), {
+          INTELLIGENCE_CACHE.set(assetSymbol.toUpperCase(), {
             at: Date.now(),
             data: summary
           });
 
           const provider = summary.analysis_provider || 'unknown';
-          console.log(`✅ Generated intelligence for ${asset.symbol} (${asset.type}) using ${provider}`);
+          console.log(`✅ Generated intelligence for ${assetSymbol} (${asset.type}) using ${provider}`);
         } else {
-          console.log(`⚠️ Failed to generate intelligence for ${asset.symbol}`);
+          console.log(`⚠️ Failed to generate intelligence for ${assetSymbol}`);
         }
       } catch (error) {
         console.error(`❌ Error processing ${asset.symbol}:`, error.message);

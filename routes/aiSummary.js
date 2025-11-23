@@ -289,7 +289,7 @@ router.get('/intelligence/:asset', async (req, res) => {
     
     if (cryptoAsset) {
       // For crypto assets, use the short symbol (BTC, ETH) as that's how we stored it
-      fullSymbol = cryptoAsset.short || cryptoAsset.symbol.split(':')[1];
+      fullSymbol = cryptoAsset.short.toUpperCase();
       console.log(`🔍 [API] Found crypto asset: ${cryptoAsset.name} -> ${fullSymbol}`);
     } else {
       // If not found in crypto assets, check if it's a stock
@@ -299,7 +299,7 @@ router.get('/intelligence/:asset', async (req, res) => {
       );
       
       if (stockAsset) {
-        fullSymbol = stockAsset.symbol; // Use stock symbol like "RELIANCE"
+        fullSymbol = stockAsset.symbol.toUpperCase(); // Use stock symbol like "RELIANCE"
         console.log(`🔍 [API] Found stock asset: ${stockAsset.name} -> ${fullSymbol}`);
       } else {
         console.log(`🔍 [API] Asset ${assetUpper} not found in crypto or stock assets, using as-is`);
@@ -316,13 +316,22 @@ router.get('/intelligence/:asset', async (req, res) => {
     
     if (intelligenceData) {
       console.log(`✅ [API] Found database data for ${asset} (${fullSymbol})`);
+      
+      // Convert data_points array to object format for frontend compatibility
+      const dataPointsObj = {};
+      if (intelligenceData.data_points && Array.isArray(intelligenceData.data_points)) {
+        intelligenceData.data_points.forEach(point => {
+          dataPointsObj[point.type] = point.value;
+        });
+      }
+      
       return res.json({
         global_news_summary: intelligenceData.global_news_summary,
         user_comments_summary: intelligenceData.user_comments_summary,
         market_sentiment_summary: intelligenceData.market_sentiment_summary,
         final_summary: intelligenceData.final_summary,
         generated_at: intelligenceData.generated_at,
-        data_points: intelligenceData.data_points,
+        data_points: dataPointsObj,
         analysis_provider: intelligenceData.analysis_provider
       });
     }

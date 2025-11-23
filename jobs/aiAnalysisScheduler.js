@@ -5,6 +5,7 @@ const Comment = require('../models/Comment');
 const SentimentVote = require('../models/SentimentVote');
 const TradeIntentVote = require('../models/TradeIntentVote');
 const geminiService = require('../services/geminiService');
+const Intelligence = require('../models/Intelligence');
 require('dotenv').config();
 
 // Cache for AI analysis data (12h TTL)
@@ -112,6 +113,35 @@ const analyzeAssetForAI = async (asset) => {
           buy_percent: parseFloat(buyPercent)
         }
       });
+      
+    // Store in database
+    try {
+      await Intelligence.findOneAndUpdate(
+        { asset: asset.short.toUpperCase() },
+        {
+          asset: asset.short.toUpperCase(),
+          assetType: asset.type,
+          global_news_summary: analysis.global_news_summary,
+          user_comments_summary: analysis.user_comments_summary,
+          market_sentiment_summary: analysis.market_sentiment_summary,
+          final_summary: analysis.final_summary,
+          data_points: [
+            { type: 'comments_count', value: recentComments.length, label: 'Comments Count' },
+            { type: 'sentiment_votes', value: totalSentiment, label: 'Sentiment Votes' },
+            { type: 'trade_votes', value: totalTrade, label: 'Trade Votes' },
+            { type: 'bullish_percent', value: parseFloat(bullishPercent), label: 'Bullish Percentage' },
+            { type: 'buy_percent', value: parseFloat(buyPercent), label: 'Buy Percentage' }
+          ],
+          analysis_provider: analysis.analysis_provider || 'gemini',
+          generated_at: new Date(),
+          expires_at: new Date(Date.now() + TTL_MS)
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`💾 [AI_SCHEDULER] Saved to database: ${asset.short}`);
+    } catch (dbError) {
+      console.error(`❌ [AI_SCHEDULER] Database save failed for ${asset.short}:`, dbError.message);
+    }
       
       return analysis;
     } else {
