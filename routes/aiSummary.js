@@ -82,7 +82,7 @@ router.post('/', async (req, res) => {
     const filled = ensureFilled(payload);
     try {
       SUMMARY_CACHE.set(key, { at: Date.now(), data: filled });
-    } catch (_) {}
+    } catch (_) { }
     return res.json(filled);
   };
 
@@ -90,10 +90,10 @@ router.post('/', async (req, res) => {
   try {
     console.log(`🤖 [AI_SUMMARY] Using Gemini AI for ${asset_name}`);
     const geminiAvailable = await geminiService.isAvailable();
-    
+
     if (geminiAvailable) {
       const prompt = `You are a financial research assistant. Summarize the following information about ${asset_name} into four concise sections with headers exactly in this order: Global News Summary, Community Comments Summary, Market Sentiment Summary, Final Takeaway. Keep each section short. If no recent news headlines are provided, use older but relevant widely-known events or market context; do not say news is unavailable.\n\nRecent News Headlines:\n${recent_news.join('\n')}\n\nUser Comments:\n${recent_comments.join('\n')}\n\nMarket Sentiment Data:\n${market_sentiment}`;
-      
+
       const result = await geminiService.generateIntelligenceAnalysis({
         assetSymbol: asset_name,
         assetName: asset_name,
@@ -102,7 +102,7 @@ router.post('/', async (req, res) => {
         sentimentData: market_sentiment ? { totalSentimentVotes: 10, bullishPercent: 75 } : {},
         marketData: market_sentiment ? { totalTradeVotes: 5, buyPercent: 60 } : {}
       });
-      
+
       if (result && result.global_news_summary) {
         console.log(`✅ [AI_SUMMARY] Gemini AI analysis completed for ${asset_name}`);
         console.log(`📊 [AI_ANALYSIS_DATA] Provider: gemini`);
@@ -110,7 +110,7 @@ router.post('/', async (req, res) => {
         console.log(`💬 [AI_ANALYSIS_DATA] User Comments Summary: ${result.user_comments_summary}`);
         console.log(`📈 [AI_ANALYSIS_DATA] Market Sentiment Summary: ${result.market_sentiment_summary}`);
         console.log(`🎯 [AI_ANALYSIS_DATA] Final Summary: ${result.final_summary}`);
-        
+
         return sendAndCache({
           global_news_summary: result.global_news_summary,
           user_comments_summary: result.user_comments_summary,
@@ -276,28 +276,28 @@ router.get('/intelligence/:asset', async (req, res) => {
     const asset = req.params.asset;
     const assetUpper = asset.toUpperCase();
     console.log(`🔍 [API] Looking up intelligence data for asset: ${asset} (as ${assetUpper})`);
-    
+
     // Map asset names/symbols to full database symbols
     let fullSymbol = assetUpper;
-    
+
     // Check if it's a crypto name (like "Ethereum", "Bitcoin") or short symbol (like "ETH", "BTC")
-    const cryptoAsset = cryptoAssets.find(c => 
-      c.name.toUpperCase() === assetUpper || 
+    const cryptoAsset = cryptoAssets.find(c =>
+      c.name.toUpperCase() === assetUpper ||
       c.short.toUpperCase() === assetUpper ||
       c.symbol.toUpperCase() === assetUpper
     );
-    
+
     if (cryptoAsset) {
       // For crypto assets, use the short symbol (BTC, ETH) as that's how we stored it
       fullSymbol = cryptoAsset.short.toUpperCase();
       console.log(`🔍 [API] Found crypto asset: ${cryptoAsset.name} -> ${fullSymbol}`);
     } else {
       // If not found in crypto assets, check if it's a stock
-      const stockAsset = stockAssets.find(s => 
+      const stockAsset = stockAssets.find(s =>
         s.symbol.toUpperCase() === assetUpper ||
         s.name.toUpperCase() === assetUpper
       );
-      
+
       if (stockAsset) {
         fullSymbol = stockAsset.symbol.toUpperCase(); // Use stock symbol like "RELIANCE"
         console.log(`🔍 [API] Found stock asset: ${stockAsset.name} -> ${fullSymbol}`);
@@ -305,18 +305,18 @@ router.get('/intelligence/:asset', async (req, res) => {
         console.log(`🔍 [API] Asset ${assetUpper} not found in crypto or stock assets, using as-is`);
       }
     }
-    
+
     console.log(`🔍 [API] Mapped ${assetUpper} to ${fullSymbol}`);
-    
+
     // Query database for intelligence data
-    const intelligenceData = await Intelligence.findOne({ 
+    const intelligenceData = await Intelligence.findOne({
       asset: fullSymbol,
       expires_at: { $gt: new Date() } // Only return non-expired data
     });
-    
+
     if (intelligenceData) {
       console.log(`✅ [API] Found database data for ${asset} (${fullSymbol})`);
-      
+
       // Convert data_points array to object format for frontend compatibility
       const dataPointsObj = {};
       if (intelligenceData.data_points && Array.isArray(intelligenceData.data_points)) {
@@ -324,7 +324,7 @@ router.get('/intelligence/:asset', async (req, res) => {
           dataPointsObj[point.type] = point.value;
         });
       }
-      
+
       return res.json({
         global_news_summary: intelligenceData.global_news_summary,
         user_comments_summary: intelligenceData.user_comments_summary,
@@ -338,7 +338,7 @@ router.get('/intelligence/:asset', async (req, res) => {
 
     console.log(`⚠️ [API] No database data found for ${asset} (${fullSymbol}), returning fallback`);
     console.log(`🔍 [API] Database connection status: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Not connected'}`);
-    
+
     // Return fallback data if no database data exists
     return res.json({
       global_news_summary: `No major news headlines specifically affecting ${asset} in the last 24 hours.`,

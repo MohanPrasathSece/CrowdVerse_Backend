@@ -4,7 +4,7 @@ class GeminiService {
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY;
     this.genAI = null;
-    
+
     if (this.apiKey) {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
       console.log('✅ Gemini AI service initialized');
@@ -32,9 +32,9 @@ class GeminiService {
       console.log(`🤖 [GEMINI] Initializing model for ${assetData.assetSymbol}...`);
       const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       console.log(`✅ [GEMINI] Model initialized successfully`);
-      
+
       const { assetSymbol, assetName, recentNews, userComments, sentimentData, marketData } = assetData;
-      
+
       const prompt = `You are a financial intelligence analyst. Analyze the following data for ${assetName} (${assetSymbol}) and provide insights in four specific sections:
 
 GLOBAL NEWS SUMMARY: Analyze recent news headlines and their potential impact on the asset. Focus on market-moving events, regulatory changes, partnerships, or major announcements.
@@ -55,25 +55,25 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
 
       console.log(`🤖 [GEMINI] Generated prompt for ${assetData.assetSymbol} (length: ${prompt.length} chars)`);
       console.log(`🤖 [GEMINI] Sending request to Gemini API...`);
-      
+
       const apiCallStart = Date.now();
       const apiResult = await model.generateContent(prompt);
       const apiCallDuration = Date.now() - apiCallStart;
-      
+
       console.log(`✅ [GEMINI] API call completed for ${assetData.assetSymbol} in ${apiCallDuration}ms`);
-      
+
       const response = await apiResult.response;
       const text = response.text();
-      
+
       console.log(`🤖 [GEMINI] Received response for ${assetData.assetSymbol} (length: ${text.length} chars)`);
       console.log(`🤖 [GEMINI] Response preview:`, text.substring(0, 200) + (text.length > 200 ? '...' : ''));
-      
+
       // Parse the response into sections
       console.log(`🤖 [GEMINI] Parsing response sections for ${assetData.assetSymbol}...`);
       const sections = this.parseResponse(text);
-      
+
       console.log(`✅ [GEMINI] Parsed sections:`, Object.keys(sections).filter(key => sections[key]));
-      
+
       const totalDuration = Date.now() - startTime;
       const result = {
         global_news_summary: sections.global_news_summary || 'No significant news detected.',
@@ -87,10 +87,10 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
         processing_time_ms: totalDuration,
         api_call_time_ms: apiCallDuration
       };
-      
+
       console.log(`✅ [GEMINI] Successfully completed analysis for ${assetData.assetSymbol} in ${totalDuration}ms`);
       return result;
-      
+
     } catch (error) {
       const totalDuration = Date.now() - startTime;
       console.error(`❌ [GEMINI] Analysis failed for ${assetData.assetSymbol} after ${totalDuration}ms:`, {
@@ -130,12 +130,12 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
       for (let i = 0; i < headers.length && i + 1 < parts.length; i++) {
         const header = headers[i];
         const content = parts[i + 1] || '';
-        
+
         // Clean up content - remove extra newlines and markdown formatting
         let cleanContent = content.replace(/\n\n+/g, ' ').trim();
         // Remove markdown bold formatting from content
         cleanContent = cleanContent.replace(/\*\*/g, '');
-        
+
         // Remove any bullet points and clean up
         cleanContent = cleanContent.replace(/^\*\s*/gm, '').replace(/^\d+\.\s*/gm, '');
 
@@ -153,12 +153,12 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
       }
     } else {
       console.warn(`⚠️ [GEMINI] Could not parse sections properly. Headers found: ${headers?.length || 0}, Parts: ${parts.length}`);
-      
+
       // Fallback: try to extract content using a different approach
       const lines = text.split('\n').filter(line => line.trim());
       let currentSection = '';
       let contentBuffer = [];
-      
+
       for (const line of lines) {
         if (line.toUpperCase().includes('GLOBAL NEWS SUMMARY')) {
           if (currentSection === 'global_news' && contentBuffer.length > 0) {
@@ -189,7 +189,7 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
           contentBuffer.push(line.trim());
         }
       }
-      
+
       // Don't forget the last section
       if (currentSection === 'final' && contentBuffer.length > 0) {
         sections.final_summary = contentBuffer.join(' ').replace(/\*\*/g, '').trim();
