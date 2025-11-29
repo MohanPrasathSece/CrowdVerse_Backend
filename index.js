@@ -5,6 +5,15 @@ const http = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
+// Check critical environment variables
+if (!process.env.JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET is not defined in environment variables.');
+  console.error('   Auth routes will fail. Please set JWT_SECRET.');
+}
+if (!process.env.MONGODB_URI) {
+  console.warn('⚠️  WARNING: MONGODB_URI is not defined. Database connection will be skipped.');
+}
+
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const marketRoutes = require('./routes/market');
