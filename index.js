@@ -32,7 +32,9 @@ connectDB();
 const staticOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'https://crowd-verse.vercel.app'
+  'https://crowd-verse.vercel.app',
+  'https://www.crowdverse.in',
+  'https://crowdverse-backend.onrender.com'
 ];
 
 const envOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
@@ -51,6 +53,12 @@ const isAllowedOrigin = (origin) => {
       return true;
     }
     if (hostname === 'vercel.app' || hostname.endsWith('.vercel.app')) {
+      return true;
+    }
+    if (hostname === 'crowdverse.in' || hostname === 'www.crowdverse.in') {
+      return true;
+    }
+    if (hostname === 'render.com' || hostname.endsWith('.render.com')) {
       return true;
     }
   } catch (err) {
