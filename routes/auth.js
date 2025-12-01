@@ -12,6 +12,12 @@ const generateToken = (id) => {
 router.post(
   '/signup',
   [
+    body('firstName').notEmpty().withMessage('First name is required')
+                   .trim()
+                   .isLength({ max: 50 }).withMessage('First name cannot exceed 50 characters'),
+    body('lastName').notEmpty().withMessage('Last name is required')
+                  .trim()
+                  .isLength({ max: 50 }).withMessage('Last name cannot exceed 50 characters'),
     body('emailOrMobile').notEmpty().withMessage('Email or mobile is required'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('confirmPassword').custom((value, { req }) => {
@@ -27,7 +33,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { emailOrMobile, password } = req.body;
+    const { firstName, lastName, emailOrMobile, password } = req.body;
 
     try {
       const userExists = await User.findOne({ emailOrMobile });
@@ -35,9 +41,15 @@ router.post(
         return res.status(400).json({ message: 'User already exists' });
       }
 
-      const user = await User.create({ emailOrMobile, password });
+      const user = await User.create({ firstName, lastName, emailOrMobile, password });
       if (user) {
-        res.status(201).json({ _id: user._id, emailOrMobile: user.emailOrMobile, token: generateToken(user._id) });
+        res.status(201).json({ 
+          _id: user._id, 
+          firstName: user.firstName, 
+          lastName: user.lastName, 
+          emailOrMobile: user.emailOrMobile, 
+          token: generateToken(user._id) 
+        });
       } else {
         res.status(400).json({ message: 'Invalid user data' });
       }
@@ -66,7 +78,13 @@ router.post(
       // Use lean() for faster query when we don't need the full document
       const user = await User.findOne({ emailOrMobile }).lean().exec();
       if (user && (await bcrypt.compare(password, user.password))) {
-        res.json({ _id: user._id, emailOrMobile: user.emailOrMobile, token: generateToken(user._id) });
+        res.json({ 
+          _id: user._id, 
+          firstName: user.firstName, 
+          lastName: user.lastName, 
+          emailOrMobile: user.emailOrMobile, 
+          token: generateToken(user._id) 
+        });
       } else {
         res.status(401).json({ message: 'Invalid credentials' });
       }
