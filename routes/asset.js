@@ -16,8 +16,8 @@ router.post('/:asset/sentiment', protect, async (req, res) => {
     }
 
     const doc = await SentimentVote.findOneAndUpdate(
-      { asset, user: req.user._id },
-      { asset, user: req.user._id, sentiment },
+      { asset, user: req.user.isGuest ? req.user.id : req.user._id },
+      { asset, user: req.user.isGuest ? req.user.id : req.user._id, sentiment },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -80,8 +80,8 @@ router.post('/:asset/intent', protect, async (req, res) => {
     }
 
     const doc = await TradeIntentVote.findOneAndUpdate(
-      { asset, user: req.user._id },
-      { asset, user: req.user._id, action },
+      { asset, user: req.user.isGuest ? req.user.id : req.user._id },
+      { asset, user: req.user.isGuest ? req.user.id : req.user._id, action },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -178,7 +178,13 @@ router.post('/:asset/comments', protect, async (req, res) => {
 
     const doc = await Comment.create({ 
       asset, 
-      user: req.user._id, 
+      user: req.user.isGuest ? {
+        _id: req.user.id,
+        id: req.user.id,
+        firstName: req.user.firstName,
+        emailOrMobile: req.user.emailOrMobile,
+        isGuest: true
+      } : req.user._id, 
       text: text.trim(),
       sentiment: sentimentAnalysis?.sentiment || null,
       sentimentConfidence: sentimentAnalysis?.confidence || null,
@@ -205,8 +211,7 @@ router.get('/:asset/comments', async (req, res) => {
     const docs = await Comment.find({ asset })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit)
-      .populate('user', 'emailOrMobile');
+      .limit(limit);
 
     return res.json(docs);
   } catch (err) {
@@ -219,7 +224,14 @@ router.patch('/comments/:id', protect, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    if (String(comment.user) !== String(req.user._id)) return res.status(403).json({ message: 'Forbidden' });
+    
+    // Check ownership for both registered and guest users
+    const commentUserId = comment.user.isGuest ? comment.user.id : comment.user;
+    const currentUserId = req.user.isGuest ? req.user.id : req.user._id;
+    
+    if (String(commentUserId) !== String(currentUserId)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
 
     comment.text = req.body.text ?? comment.text;
     await comment.save();
@@ -238,7 +250,14 @@ router.delete('/comments/:id', protect, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    if (String(comment.user) !== String(req.user._id)) return res.status(403).json({ message: 'Forbidden' });
+    
+    // Check ownership for both registered and guest users
+    const commentUserId = comment.user.isGuest ? comment.user.id : comment.user;
+    const currentUserId = req.user.isGuest ? req.user.id : req.user._id;
+    
+    if (String(commentUserId) !== String(currentUserId)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
 
     const asset = comment.asset;
     await comment.deleteOne();

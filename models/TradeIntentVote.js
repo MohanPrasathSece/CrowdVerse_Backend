@@ -3,7 +3,12 @@ const mongoose = require('mongoose');
 const tradeIntentSchema = new mongoose.Schema(
   {
     asset: { type: String, required: true, uppercase: true, trim: true, index: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    user: { 
+      type: mongoose.Schema.Types.Mixed, 
+      required: true, 
+      index: true 
+      // Can be either ObjectId (for registered users) or string (for guests)
+    },
     action: {
       type: String,
       enum: ['buy', 'sell', 'hold'],

@@ -3,7 +3,11 @@ const mongoose = require('mongoose');
 const commentSchema = new mongoose.Schema(
   {
     asset: { type: String, required: true, uppercase: true, trim: true, index: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    user: { 
+      type: mongoose.Schema.Types.Mixed, 
+      required: true,
+      // Can be either ObjectId (for registered users) or object (for guests)
+    },
     text: { type: String, required: true, trim: true, maxlength: 1000 },
     sentiment: { type: String, enum: ['bullish', 'bearish', 'neutral'], default: null },
     sentimentConfidence: { type: Number, min: 0, max: 1, default: null },
