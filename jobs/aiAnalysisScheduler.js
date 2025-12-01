@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const mongoose = require('mongoose');
+const axios = require('axios');
 const { cryptoAssets, stockAssets } = require('../constants/marketAssets');
 const Comment = require('../models/Comment');
 const SentimentVote = require('../models/SentimentVote');
@@ -20,10 +21,54 @@ const getAllAssets = () => {
   ];
 };
 
+// Get free news data for assets
+const getFreeNewsData = async (asset) => {
+  try {
+    // Use Finnhub free API for news (already has API key)
+    const finnhubToken = process.env.FINNHUB_API_KEY;
+    if (!finnhubToken) {
+      console.log(`⚠️ [AI_SCHEDULER] No FINNHUB_API_KEY for news data`);
+      return [];
+    }
+
+    let symbol = asset.short;
+    if (asset.type === 'stock') {
+      symbol = `${symbol}.NS`; // Indian stocks
+    }
+
+    // Get news from last 7 days
+    const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const toDate = new Date().toISOString().split('T')[0];
+
+    const newsResponse = await axios.get(
+      `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(symbol)}&from=${fromDate}&to=${toDate}&token=${finnhubToken}`,
+      { timeout: 5000 }
+    );
+
+    if (newsResponse.data && Array.isArray(newsResponse.data)) {
+      const news = newsResponse.data
+        .slice(0, 5) // Get top 5 news items
+        .map(article => article.headline)
+        .filter(headline => headline && headline.length > 10);
+      
+      console.log(`📰 [AI_SCHEDULER] Found ${news.length} news items for ${symbol}`);
+      return news;
+    }
+
+    return [];
+  } catch (error) {
+    console.log(`⚠️ [AI_SCHEDULER] News fetch failed for ${asset.short}: ${error.message}`);
+    return [];
+  }
+};
+
 // Analyze asset data for AI
 const analyzeAssetForAI = async (asset) => {
   try {
     console.log(`🤖 [AI_SCHEDULER] Starting analysis for ${asset.symbol} (${asset.type})`);
+    
+    // Get free news data
+    const newsData = await getFreeNewsData(asset);
     
     // Get recent comments
     const recentComments = await Comment.find({
@@ -69,7 +114,7 @@ const analyzeAssetForAI = async (asset) => {
     const assetData = {
       assetSymbol: asset.short,
       assetName: asset.name,
-      recentNews: [], // Can be enhanced with news API
+      recentNews: newsData.join('\n'), // Use real news data
       userComments: recentComments.map(c => c.text).join('\n'),
       sentimentData: {
         bullishPercent: parseFloat(bullishPercent),
@@ -165,6 +210,75 @@ const getAIAnalysisData = (assetSymbol) => {
 
   return null;
 };
+
+// Daily job - runs at 9:00 AM every day and processes all assets
+const dailyAIJob = cron.schedule('0 9 * * *', async () => {
+  // Run every day at 9:00 AM
+  const jobStartTime = Date.now();
+  
+  try {
+    console.log(`🌅 [AI_SCHEDULER] Starting daily AI analysis at 9:00 AM`);
+    
+    // Connect to MongoDB if not connected
+    if (mongoose.connection.readyState !== 1) {
+      console.log('🤖 [AI_SCHEDULER] Connecting to MongoDB...');
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crowdverse');
+      console.log('✅ [AI_SCHEDULER] MongoDB connected successfully');
+    }
+
+    // Get all assets
+    const allAssets = getAllAssets();
+    const totalAssets = allAssets.length;
+    
+    console.log(`🤖 [AI_SCHEDULER] Daily analysis - Processing all ${totalAssets} assets`);
+    
+    // Check if Gemini is available
+    const geminiAvailable = await geminiService.isAvailable();
+    if (!geminiAvailable) {
+      console.warn('⚠️ [AI_SCHEDULER] Gemini AI not available, skipping daily analysis');
+      return;
+    }
+    
+    let successCount = 0;
+    let failureCount = 0;
+    
+    // Process all assets with delay to avoid rate limiting
+    for (let i = 0; i < allAssets.length; i++) {
+      const asset = allAssets[i];
+      console.log(`📊 [AI_SCHEDULER] Processing ${i + 1}/${totalAssets}: ${asset.symbol} (${asset.type})`);
+      
+      try {
+        const analysis = await analyzeAssetForAI(asset);
+        if (analysis) {
+          successCount++;
+          console.log(`✅ [AI_SCHEDULER] Success: ${asset.symbol}`);
+        } else {
+          failureCount++;
+          console.log(`❌ [AI_SCHEDULER] Failed: ${asset.symbol}`);
+        }
+        
+        // Delay between requests to avoid rate limiting (2 seconds)
+        if (i < allAssets.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error) {
+        failureCount++;
+        console.error(`❌ [AI_SCHEDULER] Error processing ${asset.symbol}:`, error.message);
+      }
+    }
+    
+    console.log(`📊 [AI_SCHEDULER] Daily analysis complete: ${successCount} success, ${failureCount} failures`);
+    console.log(`💾 [AI_SCHEDULER] Cache status: ${AI_ANALYSIS_CACHE.size}/${totalAssets} assets have fresh analysis`);
+    
+    const jobDuration = Date.now() - jobStartTime;
+    console.log(`✅ [AI_SCHEDULER] Daily job completed in ${jobDuration}ms (${(jobDuration/1000).toFixed(1)}s)`);
+    
+  } catch (error) {
+    console.error('❌ [AI_SCHEDULER] Error in daily AI job:', error.message);
+  }
+}, {
+  scheduled: false // Don't start automatically
+});
 
 // Hourly job - processes one asset per hour
 const hourlyAIJob = cron.schedule('0 * * * *', async () => {
@@ -269,6 +383,7 @@ const initializeAIAnalysis = async () => {
 };
 
 module.exports = {
+  dailyAIJob,
   hourlyAIJob,
   initializeAIAnalysis,
   getAIAnalysisData,

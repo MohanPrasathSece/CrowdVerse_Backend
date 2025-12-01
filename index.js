@@ -136,7 +136,7 @@ io.on('connection', (socket) => {
 app.set('io', io);
 
   // Initialize AI Analysis Scheduler
-  const { initializeAIAnalysis, hourlyAIJob } = require('./jobs/aiAnalysisScheduler');
+  const { initializeAIAnalysis, hourlyAIJob, dailyAIJob } = require('./jobs/aiAnalysisScheduler');
   
   // Start the scheduler in the background
   initializeAIAnalysis().catch(err => {
@@ -145,6 +145,10 @@ app.set('io', io);
   
   // Start hourly AI analysis job
   hourlyAIJob.start();
+  
+  // Start daily AI analysis job at 9:00 AM
+  dailyAIJob.start();
+  console.log('🤖 AI Analysis Scheduler initialized - Daily job at 9:00 AM, Hourly job every hour');
 
   const PORT = process.env.SERVER_PORT || 5000;
   server.listen(PORT, () => {
