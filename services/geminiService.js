@@ -202,6 +202,28 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
   async isAvailable() {
     return !!this.genAI;
   }
+
+  async generateSummary(prompt) {
+    if (!this.genAI) {
+      console.error('❌ [GEMINI] Service not initialized for summary generation');
+      throw new Error('Gemini AI service not initialized');
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      return {
+        final_summary: text,
+        success: true
+      };
+    } catch (error) {
+      console.error('❌ [GEMINI] Error generating summary:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new GeminiService();
