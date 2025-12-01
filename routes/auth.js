@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
 const generateToken = (id) => {
@@ -62,8 +63,9 @@ router.post(
     const { emailOrMobile, password } = req.body;
 
     try {
-      const user = await User.findOne({ emailOrMobile });
-      if (user && (await user.matchPassword(password))) {
+      // Use lean() for faster query when we don't need the full document
+      const user = await User.findOne({ emailOrMobile }).lean().exec();
+      if (user && (await bcrypt.compare(password, user.password))) {
         res.json({ _id: user._id, emailOrMobile: user.emailOrMobile, token: generateToken(user._id) });
       } else {
         res.status(401).json({ message: 'Invalid credentials' });
