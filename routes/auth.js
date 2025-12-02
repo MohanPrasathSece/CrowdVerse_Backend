@@ -76,9 +76,11 @@ router.post(
     const { emailOrMobile, password } = req.body;
 
     try {
-      // Use lean() for faster query when we don't need the full document
-      const user = await User.findOne({ emailOrMobile }).lean().exec();
+      const user = await User.findOne({ emailOrMobile }).exec();
       if (user && (await bcrypt.compare(password, user.password))) {
+        user.lastLogin = new Date();
+        await user.save({ validateBeforeSave: false });
+
         res.json({ 
           _id: user._id, 
           firstName: user.firstName, 
