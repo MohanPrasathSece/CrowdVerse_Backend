@@ -48,6 +48,7 @@ router.post(
           firstName: user.firstName, 
           lastName: user.lastName, 
           emailOrMobile: user.emailOrMobile, 
+          isAdmin: user.isAdmin, 
           token: generateToken(user._id) 
         });
       } else {
@@ -83,6 +84,7 @@ router.post(
           firstName: user.firstName, 
           lastName: user.lastName, 
           emailOrMobile: user.emailOrMobile, 
+          isAdmin: user.isAdmin, 
           token: generateToken(user._id) 
         });
       } else {

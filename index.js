@@ -17,6 +17,8 @@ if (!process.env.MONGODB_URI) {
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const marketRoutes = require('./routes/market');
+const adminRoutes = require('./routes/admin');
+const User = require('./models/User');
 const startMarketSnapshotJob = require('./jobs/marketSnapshotJob');
 const startNSEStocksJob = require('./jobs/nseStocksJob');
 const startAISummariesJob = require('./jobs/aiSummariesJob');
@@ -97,6 +99,7 @@ app.get('/', (_req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/market', marketRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/assets', require('./routes/asset'));
 app.use('/api/ai-summary', require('./routes/aiSummary'));
 
@@ -149,6 +152,34 @@ app.set('io', io);
   // Start daily AI analysis job at 9:00 AM
   dailyAIJob.start();
   console.log('🤖 AI Analysis Scheduler initialized - Daily job at 9:00 AM, Hourly job every hour');
+
+  const ensureAdminUser = async () => {
+    try {
+      const adminIdentifier = process.env.ADMIN_EMAIL || 'admin@crowdverse.local';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+
+      let admin = await User.findOne({ emailOrMobile: adminIdentifier });
+      if (!admin) {
+        admin = new User({
+          firstName: 'Admin',
+          lastName: 'User',
+          emailOrMobile: adminIdentifier,
+          password: adminPassword,
+          isAdmin: true,
+        });
+        await admin.save();
+        console.log('👤 Admin user created with email:', adminIdentifier);
+      } else if (!admin.isAdmin) {
+        admin.isAdmin = true;
+        await admin.save();
+        console.log('👤 Existing user promoted to admin:', adminIdentifier);
+      }
+    } catch (err) {
+      console.error('Failed to ensure admin user exists:', err.message);
+    }
+  };
+
+  ensureAdminUser();
 
   const PORT = process.env.SERVER_PORT || 5000;
   server.listen(PORT, () => {
