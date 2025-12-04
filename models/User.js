@@ -34,7 +34,6 @@ const userSchema = new mongoose.Schema(
     lastLogin: {
       type: Date,
       default: null,
-      index: true,
     },
   },
   {
@@ -42,8 +41,9 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Add index for faster user lookup
+// Add indexes for faster lookups
 userSchema.index({ emailOrMobile: 1 });
+userSchema.index({ lastLogin: 1 });
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();

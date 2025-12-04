@@ -96,6 +96,29 @@ app.get('/', (_req, res) => {
   res.json({ status: 'ok', message: 'CrowdVerse API' });
 });
 
+// Detailed health check for Render
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    const mongoose = require('mongoose');
+    const dbState = mongoose.connection.readyState;
+    const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
+    
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: dbStatus,
+      memory: process.memoryUsage(),
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/market', marketRoutes);
@@ -182,7 +205,7 @@ const ensureAdminUser = async () => {
 
 ensureAdminUser();
 
-const PORT = process.env.SERVER_PORT || 5000;
+const PORT = process.env.SERVER_PORT || process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log('🤖 AI Analysis Scheduler initialized and running hourly');

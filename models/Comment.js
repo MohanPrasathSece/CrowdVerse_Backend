@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const commentSchema = new mongoose.Schema(
   {
-    asset: { type: String, required: true, uppercase: true, trim: true, index: true },
+    asset: { type: String, required: true, uppercase: true, trim: true },
     user: {
       type: mongoose.Schema.Types.Mixed,
       required: true,
@@ -17,5 +17,10 @@ const commentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Add indexes for faster lookups
+commentSchema.index({ asset: 1 });
+commentSchema.index({ parentId: 1 });
+commentSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Comment', commentSchema);
