@@ -102,6 +102,7 @@ app.use('/api/market', marketRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/assets', require('./routes/asset'));
 app.use('/api/ai-summary', require('./routes/aiSummary'));
+app.use('/api/news', require('./routes/news'));
 
 // Serve React build in production
 if (process.env.NODE_ENV === 'production') {
@@ -138,54 +139,54 @@ io.on('connection', (socket) => {
 
 app.set('io', io);
 
-  // Initialize AI Analysis Scheduler
-  const { initializeAIAnalysis, hourlyAIJob, dailyAIJob } = require('./jobs/aiAnalysisScheduler');
-  
-  // Start the scheduler in the background
-  initializeAIAnalysis().catch(err => {
-    console.error('⚠️ Failed to initialize AI analysis scheduler:', err.message);
-  });
-  
-  // Start hourly AI analysis job
-  hourlyAIJob.start();
-  
-  // Start daily AI analysis job at 9:00 AM
-  dailyAIJob.start();
-  console.log('🤖 AI Analysis Scheduler initialized - Daily job at 9:00 AM, Hourly job every hour');
+// Initialize AI Analysis Scheduler
+const { initializeAIAnalysis, hourlyAIJob, dailyAIJob } = require('./jobs/aiAnalysisScheduler');
 
-  const ensureAdminUser = async () => {
-    try {
-      const adminIdentifier = process.env.ADMIN_EMAIL || 'admin@crowdverse.local';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+// Start the scheduler in the background
+initializeAIAnalysis().catch(err => {
+  console.error('⚠️ Failed to initialize AI analysis scheduler:', err.message);
+});
 
-      let admin = await User.findOne({ emailOrMobile: adminIdentifier });
-      if (!admin) {
-        admin = new User({
-          firstName: 'Admin',
-          lastName: 'User',
-          emailOrMobile: adminIdentifier,
-          password: adminPassword,
-          isAdmin: true,
-        });
-        await admin.save();
-        console.log('👤 Admin user created with email:', adminIdentifier);
-      } else if (!admin.isAdmin) {
-        admin.isAdmin = true;
-        await admin.save();
-        console.log('👤 Existing user promoted to admin:', adminIdentifier);
-      }
-    } catch (err) {
-      console.error('Failed to ensure admin user exists:', err.message);
+// Start hourly AI analysis job
+hourlyAIJob.start();
+
+// Start daily AI analysis job at 9:00 AM
+dailyAIJob.start();
+console.log('🤖 AI Analysis Scheduler initialized - Daily job at 9:00 AM, Hourly job every hour');
+
+const ensureAdminUser = async () => {
+  try {
+    const adminIdentifier = process.env.ADMIN_EMAIL || 'admin@crowdverse.local';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+
+    let admin = await User.findOne({ emailOrMobile: adminIdentifier });
+    if (!admin) {
+      admin = new User({
+        firstName: 'Admin',
+        lastName: 'User',
+        emailOrMobile: adminIdentifier,
+        password: adminPassword,
+        isAdmin: true,
+      });
+      await admin.save();
+      console.log('👤 Admin user created with email:', adminIdentifier);
+    } else if (!admin.isAdmin) {
+      admin.isAdmin = true;
+      await admin.save();
+      console.log('👤 Existing user promoted to admin:', adminIdentifier);
     }
-  };
+  } catch (err) {
+    console.error('Failed to ensure admin user exists:', err.message);
+  }
+};
 
-  ensureAdminUser();
+ensureAdminUser();
 
-  const PORT = process.env.SERVER_PORT || 5000;
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log('🤖 AI Analysis Scheduler initialized and running hourly');
-  });
+const PORT = process.env.SERVER_PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log('🤖 AI Analysis Scheduler initialized and running hourly');
+});
 
 // Schedule hourly market snapshots if env configured
 startMarketSnapshotJob();
@@ -201,16 +202,16 @@ app.post('/api/intelligence/trigger', async (req, res) => {
   try {
     console.log('🤖 [API] Manual trigger for intelligence panel job...');
     await runIntelligencePanelJob();
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Intelligence panel job triggered successfully',
-      cacheSize: INTELLIGENCE_CACHE.size 
+      cacheSize: INTELLIGENCE_CACHE.size
     });
   } catch (error) {
     console.error('❌ [API] Error triggering intelligence job:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });

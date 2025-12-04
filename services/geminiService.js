@@ -210,17 +210,70 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
     }
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: {
+          temperature: 0.7,
+        }
+      });
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      
+
       return {
         final_summary: text,
         success: true
       };
     } catch (error) {
       console.error('❌ [GEMINI] Error generating summary:', error);
+      throw error;
+    }
+  }
+
+  async generateNewsAndPolls() {
+    if (!this.genAI) {
+      throw new Error('Gemini AI service not initialized');
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: {
+          temperature: 0.7,
+        }
+      });
+      const prompt = `
+        Generate 6 news items for this week related to Crypto, Stocks, and Politics affecting markets.
+        For each news item, also generate a relevant poll question with 3-4 options.
+        
+        Return the response in strictly valid JSON format with the following structure:
+        [
+          {
+            "title": "News Title",
+            "summary": "Short summary",
+            "content": "Longer content...",
+            "source": "Source Name (e.g., Bloomberg, CoinDesk)",
+            "category": "Crypto" | "Stocks" | "Politics",
+            "sentiment": "bullish" | "bearish" | "neutral",
+            "poll": {
+              "question": "Poll Question?",
+              "options": ["Option 1", "Option 2", "Option 3"]
+            }
+          }
+        ]
+        Do not include any markdown formatting (like \`\`\`json). Just the raw JSON string.
+      `;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      let text = response.text();
+
+      // Clean up potential markdown code blocks
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('❌ [GEMINI] Error generating news:', error);
       throw error;
     }
   }
