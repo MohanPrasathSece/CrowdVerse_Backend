@@ -12,7 +12,7 @@ require('dotenv').config();
 // Cache for AI analysis data (12h TTL)
 const AI_ANALYSIS_CACHE = new Map();
 const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
-
+//no
 // Get all assets in a specific order for hourly generation
 const getAllAssets = () => {
   return [
