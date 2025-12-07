@@ -144,8 +144,16 @@ router.get('/:asset/intent/me', protect, async (req, res) => {
 router.post('/:asset/comments', protect, async (req, res) => {
   try {
     const asset = String(req.params.asset).toUpperCase();
-    const { text } = req.body;
+    const { text, parentId } = req.body;
     if (!text?.trim()) return res.status(400).json({ message: 'Comment text required' });
+
+    // Validate parentId if provided
+    if (parentId) {
+      const parentComment = await Comment.findById(parentId);
+      if (!parentComment || parentComment.asset !== asset) {
+        return res.status(400).json({ message: 'Invalid parent comment' });
+      }
+    }
 
     // Analyze comment sentiment with Gemini AI
     let sentimentAnalysis = null;
@@ -186,6 +194,7 @@ router.post('/:asset/comments', protect, async (req, res) => {
         isGuest: true
       } : req.user._id, 
       text: text.trim(),
+      parentId: parentId || null,
       sentiment: sentimentAnalysis?.sentiment || null,
       sentimentConfidence: sentimentAnalysis?.confidence || null,
       keyPoints: sentimentAnalysis?.key_points || [],

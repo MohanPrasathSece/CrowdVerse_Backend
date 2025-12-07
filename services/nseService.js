@@ -27,7 +27,7 @@ const SECTOR_MAP = {
 };
 
 const axiosNSE = axios.create({
-  timeout: 15000,
+  timeout: 12000,
   headers: {
     'User-Agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
@@ -40,9 +40,9 @@ const axiosNSE = axios.create({
 });
 
 async function fetchNifty50() {
-  // Warm-up request to set cookies if required by NSE
+  // Warm-up request to set cookies if required by NSE (with shorter timeout)
   try {
-    await axiosNSE.get(NSE_BASE, { timeout: 8000 });
+    await axiosNSE.get(NSE_BASE, { timeout: 5000 });
   } catch (_) {
     // ignore warm-up failures
   }
