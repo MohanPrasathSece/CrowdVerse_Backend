@@ -5,6 +5,7 @@ const SentimentVote = require('../models/SentimentVote');
 const TradeIntentVote = require('../models/TradeIntentVote');
 const Comment = require('../models/Comment');
 const geminiService = require('../services/geminiService');
+const groqService = require('../services/groqService');
 
 /* ---------------- Sentiment Poll ---------------- */
 router.post('/:asset/sentiment', protect, async (req, res) => {
@@ -126,13 +127,13 @@ router.get('/:asset/intent/me', protect, async (req, res) => {
   try {
     const asset = String(req.params.asset).toUpperCase();
     const userId = req.user.id;
-    
+
     const vote = await TradeIntentVote.findOne({ asset, user: userId });
-    
+
     if (!vote) {
       return res.json({ intent: null });
     }
-    
+
     return res.json({ intent: vote.action });
   } catch (err) {
     console.error(err);
@@ -155,11 +156,13 @@ router.post('/:asset/comments', protect, async (req, res) => {
       }
     }
 
-    // Analyze comment sentiment with Gemini AI
+    // Analyze comment sentiment with AI
     let sentimentAnalysis = null;
     try {
+      const groqAvailable = await groqService.isAvailable();
       const geminiAvailable = await geminiService.isAvailable();
-      if (geminiAvailable) {
+
+      if (groqAvailable || geminiAvailable) {
         const prompt = `Analyze the sentiment of this financial comment and provide a JSON response with:
         1. sentiment: "bullish", "bearish", or "neutral"
         2. confidence: a number from 0 to 1
@@ -169,30 +172,36 @@ router.post('/:asset/comments', protect, async (req, res) => {
         Comment: "${text}"
         
         Respond with only valid JSON, no other text.`;
-        
-        const analysis = await geminiService.generateSummary(prompt);
+
+        let analysis;
+        if (groqAvailable) {
+          analysis = await groqService.generateSummary(prompt);
+        } else {
+          analysis = await geminiService.generateSummary(prompt);
+        }
+
         if (analysis) {
           try {
             sentimentAnalysis = JSON.parse(analysis.final_summary || '{}');
-            console.log(`🤖 [COMMENT] Gemini analyzed comment sentiment: ${sentimentAnalysis.sentiment}`);
+            console.log(`🤖 [COMMENT] ${groqAvailable ? 'Groq' : 'Gemini'} analyzed comment sentiment: ${sentimentAnalysis.sentiment}`);
           } catch (parseError) {
-            console.warn('⚠️ [COMMENT] Could not parse Gemini sentiment analysis');
+            console.warn('⚠️ [COMMENT] Could not parse AI sentiment analysis');
           }
         }
       }
     } catch (error) {
-      console.error('❌ [COMMENT] Gemini sentiment analysis failed:', error);
+      console.error('❌ [COMMENT] AI sentiment analysis failed:', error);
     }
 
-    const doc = await Comment.create({ 
-      asset, 
+    const doc = await Comment.create({
+      asset,
       user: req.user.isGuest ? {
         _id: req.user.id,
         id: req.user.id,
         firstName: req.user.firstName,
         emailOrMobile: req.user.emailOrMobile,
         isGuest: true
-      } : req.user._id, 
+      } : req.user._id,
       text: text.trim(),
       parentId: parentId || null,
       sentiment: sentimentAnalysis?.sentiment || null,
@@ -218,10 +227,46 @@ router.get('/:asset/comments', async (req, res) => {
     const limit = Math.min(50, parseInt(req.query.limit) || 20);
 
     const docs = await Comment.find({ asset })
+      .populate('parentId')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
+    // Manually populate users since 'user' field is Mixed
+    const User = require('../models/User');
+    const mongoose = require('mongoose');
+
+    const registeredIds = docs
+      .filter(d => {
+        const u = d.user;
+        if (!u) return false;
+        if (typeof u === 'object') return false; // Already populated or guest object
+        // Check if valid ObjectId string
+        return mongoose.Types.ObjectId.isValid(u) || (typeof u === 'string' && u.length === 24);
+      })
+      .map(d => d.user);
+
+    if (registeredIds.length > 0) {
+      const users = await User.find({ _id: { $in: registeredIds } })
+        .select('firstName lastName emailOrMobile isGuest')
+        .lean();
+
+      const userMap = {};
+      users.forEach(u => { userMap[u._id.toString()] = u; });
+
+      // Attach user details
+      docs.forEach(d => {
+        if (d.user && (mongoose.Types.ObjectId.isValid(d.user) || typeof d.user === 'string')) {
+          const u = userMap[d.user.toString()];
+          if (u) {
+            d.user = u;
+          }
+        }
+      });
+    }
+
+    console.log(`[DEBUG] Successfully fetched ${docs.length} comments for ${asset}.`);
     return res.json(docs);
   } catch (err) {
     console.error(err);
@@ -233,11 +278,11 @@ router.patch('/comments/:id', protect, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    
+
     // Check ownership for both registered and guest users
     const commentUserId = comment.user.isGuest ? comment.user.id : comment.user;
     const currentUserId = req.user.isGuest ? req.user.id : req.user._id;
-    
+
     if (String(commentUserId) !== String(currentUserId)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
@@ -259,11 +304,11 @@ router.delete('/comments/:id', protect, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
-    
+
     // Check ownership for both registered and guest users
     const commentUserId = comment.user.isGuest ? comment.user.id : comment.user;
     const currentUserId = req.user.isGuest ? req.user.id : req.user._id;
-    
+
     if (String(commentUserId) !== String(currentUserId)) {
       return res.status(403).json({ message: 'Forbidden' });
     }

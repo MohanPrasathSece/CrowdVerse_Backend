@@ -11,6 +11,7 @@ const geminiService = require('../services/geminiService');
 const { getAIAnalysisData } = require('../jobs/aiAnalysisScheduler');
 const { cryptoAssets, stockAssets } = require('../constants/marketAssets');
 const Intelligence = require('../models/Intelligence');
+const groqService = require('../services/groqService');
 const mongoose = require('mongoose');
 
 const openai = process.env.OPENAI_API_KEY
@@ -86,42 +87,43 @@ router.post('/', async (req, res) => {
     return res.json(filled);
   };
 
-  // Use Gemini AI as primary provider
+  // Use Groq or Gemini AI
   try {
-    console.log(`🤖 [AI_SUMMARY] Using Gemini AI for ${asset_name}`);
+    const groqAvailable = await groqService.isAvailable();
     const geminiAvailable = await geminiService.isAvailable();
 
-    if (geminiAvailable) {
-      const prompt = `You are a financial research assistant. Summarize the following information about ${asset_name} into four concise sections with headers exactly in this order: Global News Summary, Community Comments Summary, Market Sentiment Summary, Final Takeaway. Keep each section short. If no recent news headlines are provided, use older but relevant widely-known events or market context; do not say news is unavailable.\n\nRecent News Headlines:\n${recent_news.join('\n')}\n\nUser Comments:\n${recent_comments.join('\n')}\n\nMarket Sentiment Data:\n${market_sentiment}`;
+    if (groqAvailable || geminiAvailable) {
+      console.log(`🤖 [AI_SUMMARY] Using AI for ${asset_name}`);
 
-      const result = await geminiService.generateIntelligenceAnalysis({
+      const assetData = {
         assetSymbol: asset_name,
         assetName: asset_name,
         recentNews: recent_news,
         userComments: recent_comments.join('\n'),
         sentimentData: market_sentiment ? { totalSentimentVotes: 10, bullishPercent: 75 } : {},
         marketData: market_sentiment ? { totalTradeVotes: 5, buyPercent: 60 } : {}
-      });
+      };
+
+      let result;
+      if (groqAvailable) {
+        result = await groqService.generateIntelligenceAnalysis(assetData);
+      } else {
+        result = await geminiService.generateIntelligenceAnalysis(assetData);
+      }
 
       if (result && result.global_news_summary) {
-        console.log(`✅ [AI_SUMMARY] Gemini AI analysis completed for ${asset_name}`);
-        console.log(`📊 [AI_ANALYSIS_DATA] Provider: gemini`);
-        console.log(`📰 [AI_ANALYSIS_DATA] Global News Summary: ${result.global_news_summary}`);
-        console.log(`💬 [AI_ANALYSIS_DATA] User Comments Summary: ${result.user_comments_summary}`);
-        console.log(`📈 [AI_ANALYSIS_DATA] Market Sentiment Summary: ${result.market_sentiment_summary}`);
-        console.log(`🎯 [AI_ANALYSIS_DATA] Final Summary: ${result.final_summary}`);
-
+        console.log(`✅ [AI_SUMMARY] ${result.analysis_provider.toUpperCase()} AI analysis completed for ${asset_name}`);
         return sendAndCache({
           global_news_summary: result.global_news_summary,
           user_comments_summary: result.user_comments_summary,
           market_sentiment_summary: result.market_sentiment_summary,
           final_summary: result.final_summary,
-          analysis_provider: 'gemini'
+          analysis_provider: result.analysis_provider
         });
       }
     }
   } catch (error) {
-    console.error('❌ [AI_SUMMARY] Gemini AI error:', error);
+    console.error('❌ [AI_SUMMARY] AI error:', error);
   }
 
   // If explicitly requested, prefer OpenRouter first

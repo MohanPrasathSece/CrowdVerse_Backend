@@ -1,16 +1,16 @@
 const mongoose = require('mongoose');
 
 const intelligenceSchema = new mongoose.Schema({
-  asset: { 
-    type: String, 
-    required: true, 
-    uppercase: true, 
-    trim: true, 
-    index: true 
+  asset: {
+    type: String,
+    required: true,
+    uppercase: true,
+    trim: true,
+    index: true
   },
   assetType: {
     type: String,
-    enum: ['stock', 'crypto'],
+    enum: ['stock', 'crypto', 'market'],
     required: true
   },
   global_news_summary: {

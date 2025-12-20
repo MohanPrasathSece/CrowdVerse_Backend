@@ -4,6 +4,7 @@ const News = require('../models/News');
 const Poll = require('../models/Poll');
 const Comment = require('../models/Comment');
 const geminiService = require('../services/geminiService');
+const groqService = require('../services/groqService');
 const { protect } = require('../middleware/auth');
 
 // Helper to get current week ID (e.g., "2024-W48")
@@ -75,7 +76,7 @@ router.get('/', async (req, res) => {
                                 const title = cleanText(article.title);
                                 const desc = cleanText(article.description || '');
                                 const cont = cleanText(article.content || '');
-                                
+
                                 if (title && (desc || cont)) {
                                     allArticles.push({
                                         title: title.substring(0, 200),
@@ -96,11 +97,20 @@ router.get('/', async (req, res) => {
                     }
                 }
 
-                // If NewsAPI fails or no key, use Gemini as fallback
+                // If NewsAPI fails or no key, use AI as fallback
                 if (allArticles.length === 0) {
-                    console.log('NewsAPI failed, using Gemini fallback');
+                    console.log('NewsAPI failed, using AI fallback');
                     try {
-                        const generatedData = await geminiService.generateNewsAndPolls();
+                        const groqAvailable = await groqService.isAvailable();
+                        let generatedData;
+
+                        if (groqAvailable) {
+                            console.log('🤖 [NEWS] Generating with Groq...');
+                            generatedData = await groqService.generateNewsAndPolls();
+                        } else {
+                            console.log('🤖 [NEWS] Generating with Gemini...');
+                            generatedData = await geminiService.generateNewsAndPolls();
+                        }
 
                         for (const item of generatedData) {
                             const newNews = new News({
@@ -210,11 +220,21 @@ router.get('/', async (req, res) => {
             }
         }
 
-        // Attach polls to news
-        const newsWithPolls = await Promise.all(news.map(async (n) => {
-            const poll = await Poll.findOne({ newsId: n._id });
-            return { ...n.toObject(), poll };
-        }));
+        // Batch fetch polls for efficiency
+        const newsIds = news.map(n => n._id);
+        const polls = await Poll.find({ newsId: { $in: newsIds } }).lean();
+        const pollsByNewsId = polls.reduce((acc, p) => {
+            acc[p.newsId.toString()] = p;
+            return acc;
+        }, {});
+
+        const newsWithPolls = news.map(n => {
+            const nObj = n.toObject ? n.toObject() : n;
+            return {
+                ...nObj,
+                poll: pollsByNewsId[nObj._id.toString()] || null
+            };
+        });
 
         res.json(newsWithPolls);
     } catch (err) {
@@ -246,7 +266,7 @@ router.post('/vote/:pollId', async (req, res) => {
 // Get comments for a news item
 router.get('/:newsId/comments', async (req, res) => {
     try {
-        const comments = await Comment.find({ asset: req.params.newsId })
+        const comments = await Comment.find({ asset: String(req.params.newsId).toUpperCase() })
             .populate('user', 'firstName emailOrMobile isGuest')
             .populate('parentId') // Populate parent to check if it exists
             .sort({ createdAt: -1 });
@@ -262,7 +282,7 @@ router.post('/:newsId/comments', protect, async (req, res) => {
         const { text, parentId } = req.body;
 
         const comment = new Comment({
-            asset: req.params.newsId, // Using newsId as asset identifier
+            asset: String(req.params.newsId).toUpperCase(), // Using newsId as asset identifier
             user: req.user._id,
             text,
             category: 'news',
