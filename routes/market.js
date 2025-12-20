@@ -9,6 +9,9 @@ const { fetchNifty50 } = require('../services/nseService');
 const geminiService = require('../services/geminiService');
 const groqService = require('../services/groqService');
 const Intelligence = require('../models/Intelligence');
+const Comment = require('../models/Comment');
+const SentimentVote = require('../models/SentimentVote');
+const TradeIntentVote = require('../models/TradeIntentVote');
 
 // GET /api/market/quote?symbol=RELIANCE.NS
 router.get('/quote', async (req, res) => {
@@ -105,6 +108,7 @@ router.get('/analysis', async (req, res) => {
           summary: existingIntelligence.final_summary,
           market_sentiment: existingIntelligence.market_sentiment_summary,
           news_summary: existingIntelligence.global_news_summary,
+          comments_summary: existingIntelligence.user_comments_summary,
           provider: existingIntelligence.analysis_provider
         },
         provider: existingIntelligence.analysis_provider,
@@ -124,16 +128,64 @@ router.get('/analysis', async (req, res) => {
     const data = quoteData.data;
     const news = newsData.data.slice(0, 5); // Get top 5 news items
 
+
+    // Fetch real data for analysis
+    let shortSymbol = symbol.toUpperCase();
+    if (shortSymbol.includes(':')) {
+      // Handle crypto (BINANCE:ETHUSDT -> ETH)
+      const parts = shortSymbol.split(':');
+      shortSymbol = parts[1].replace('USDT', '');
+    } else if (shortSymbol.includes('.')) {
+      // Handle stocks (RELIANCE.NS -> RELIANCE)
+      shortSymbol = shortSymbol.split('.')[0];
+    }
+    const [recentComments, sentimentVotes, tradeVotes] = await Promise.all([
+      Comment.find({
+        asset: shortSymbol,
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }).sort({ createdAt: -1 }).limit(20).lean(),
+      SentimentVote.find({
+        asset: shortSymbol,
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }).lean(),
+      TradeIntentVote.find({
+        asset: shortSymbol,
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }).lean()
+    ]);
+
+    // Calculate distributions
+    const bullishCount = sentimentVotes.filter(v => v.sentiment === 'bullish').length;
+    const bearishCount = sentimentVotes.filter(v => v.sentiment === 'bearish').length;
+    const totalSentiment = bullishCount + bearishCount;
+    const bullishPercent = totalSentiment > 0 ? (bullishCount / totalSentiment * 100).toFixed(1) : 50;
+
+    const buyCount = tradeVotes.filter(v => v.action === 'buy').length;
+    const sellCount = tradeVotes.filter(v => v.action === 'sell').length;
+    const holdCount = tradeVotes.filter(v => v.action === 'hold').length;
+    const totalTrade = buyCount + sellCount + holdCount;
+    const buyPercent = totalTrade > 0 ? (buyCount / totalTrade * 100).toFixed(1) : 33.3;
+
     const assetData = {
-      assetSymbol: symbol,
+      assetSymbol: shortSymbol,
       assetName: symbol,
       currentPrice: data.c,
       change: data.d,
       changePercent: data.dp,
       recentNews: news.map(n => n.headline).join('. '),
-      userComments: [],
-      sentimentVotes: { bullish: 0, bearish: 0 },
-      tradeVotes: { buy: 0, sell: 0, hold: 0 }
+      userComments: recentComments.map(c => c.text).join('\n'),
+      sentimentData: {
+        bullishPercent: parseFloat(bullishPercent),
+        bearishPercent: parseFloat((100 - bullishPercent).toFixed(1)),
+        totalSentimentVotes: totalSentiment,
+        recentComments: recentComments.length
+      },
+      marketData: {
+        buyPercent: parseFloat(buyPercent),
+        sellPercent: totalTrade > 0 ? parseFloat((sellCount / totalTrade * 100).toFixed(1)) : 33.3,
+        holdPercent: totalTrade > 0 ? parseFloat((holdCount / totalTrade * 100).toFixed(1)) : 33.4,
+        totalTradeVotes: totalTrade
+      }
     };
 
     let analysis;
@@ -173,6 +225,7 @@ router.get('/analysis', async (req, res) => {
           summary: analysis.final_summary,
           market_sentiment: analysis.market_sentiment_summary,
           news_summary: analysis.global_news_summary,
+          comments_summary: analysis.user_comments_summary,
           provider: analysis.analysis_provider
         },
         provider: analysis.analysis_provider

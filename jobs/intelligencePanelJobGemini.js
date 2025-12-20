@@ -20,27 +20,27 @@ const analyzeAssetDataForGemini = async (assetSymbol) => {
       assetSymbol: assetSymbol.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
     })
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
 
     // Get sentiment votes
     const sentimentVotes = await SentimentVote.find({
       assetSymbol: assetSymbol.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
-    .sort({ createdAt: -1 })
-    .limit(50)
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
     // Get trade intent votes
     const tradeVotes = await TradeIntentVote.find({
       assetSymbol: assetSymbol.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
-    .sort({ createdAt: -1 })
-    .limit(50)
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
     // Calculate sentiment distribution
     const bullishCount = sentimentVotes.filter(v => v.sentiment === 'bullish').length;
@@ -78,7 +78,7 @@ const analyzeAssetDataForGemini = async (assetSymbol) => {
     // Use Gemini AI for analysis
     console.log(`🤖 [INTELLIGENCE] Generating AI analysis for ${assetSymbol} using Gemini...`);
     const analysis = await geminiService.generateIntelligenceAnalysis(assetData);
-    
+
     if (analysis && analysis.final_summary) {
       console.log(`✅ [INTELLIGENCE] AI analysis completed for ${assetSymbol}`);
       console.log(`📊 [AI_ANALYSIS_DATA] Asset: ${assetSymbol}`);
@@ -86,7 +86,7 @@ const analyzeAssetDataForGemini = async (assetSymbol) => {
       console.log(`💬 [AI_ANALYSIS_DATA] User Comments: ${analysis.user_comments_summary}`);
       console.log(`📈 [AI_ANALYSIS_DATA] Market Sentiment: ${analysis.market_sentiment_summary}`);
       console.log(`🎯 [AI_ANALYSIS_DATA] Final Summary: ${analysis.final_summary}`);
-      
+
       INTELLIGENCE_CACHE.set(assetSymbol.toUpperCase(), {
         ...analysis,
         generated_at: new Date().toISOString(),
@@ -158,27 +158,27 @@ const generateFallbackAnalysis = async (assetSymbol) => {
       assetSymbol: assetSymbol.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
 
     // Get sentiment votes
     const sentimentVotes = await SentimentVote.find({
       assetSymbol: assetSymbol.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
-    .sort({ createdAt: -1 })
-    .limit(50)
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
     // Get trade intent votes
     const tradeVotes = await TradeIntentVote.find({
       assetSymbol: assetSymbol.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
-    .sort({ createdAt: -1 })
-    .limit(50)
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
     // Calculate distributions
     const bullishCount = sentimentVotes.filter(v => v.sentiment === 'bullish').length;
@@ -194,11 +194,11 @@ const generateFallbackAnalysis = async (assetSymbol) => {
 
     const fallbackAnalysis = {
       global_news_summary: `${assetSymbol} operates in dynamic financial markets influenced by sector performance, economic indicators, and market sentiment. Recent market conditions show increased volatility across various segments, creating both opportunities and risks for investors.`,
-      user_comments_summary: recentComments.length > 0 
+      user_comments_summary: recentComments.length > 0
         ? `Recent community activity shows ${recentComments.length} comments discussing various aspects of ${assetSymbol}, including technical analysis, fundamental factors, and market positioning strategies.`
         : `${assetSymbol} attracts investor interest with focus on price movements, sector trends, and market conditions. Community engagement centers around technical levels and fundamental analysis.`,
       market_sentiment_summary: totalSentiment > 0
-        ? `Market sentiment for ${assetSymbol} shows ${bullishPercent}% bullish vs ${100-bullishPercent}% bearish based on ${totalSentiment} votes. Current sentiment reflects market conditions and sector performance.`
+        ? `Market sentiment for ${assetSymbol} shows ${bullishPercent}% bullish vs ${100 - bullishPercent}% bearish based on ${totalSentiment} votes. Current sentiment reflects market conditions and sector performance.`
         : `${assetSymbol} demonstrates balanced market sentiment typical of current market conditions. Monitor volume patterns and technical indicators for sentiment shifts.`,
       final_summary: `${assetSymbol} presents investment opportunities requiring careful analysis of market conditions, sector trends, and risk factors. Consider fundamental strength, technical position, and market timing. Implement disciplined risk management with appropriate position sizing and stop-loss strategies.`,
       generated_at: new Date().toISOString(),
@@ -254,7 +254,7 @@ const intelligencePanelJob = cron.schedule('0 3 * * *', async () => {
   const jobStartTime = Date.now();
   console.log('🤖 [INTELLIGENCE] Starting daily intelligence panel data generation with Gemini AI...');
   console.log(`🤖 [INTELLIGENCE] Job scheduled at: ${new Date().toISOString()}`);
-  
+
   try {
     // Connect to MongoDB if not connected
     if (mongoose.connection.readyState !== 1) {
@@ -276,12 +276,12 @@ const intelligencePanelJob = cron.schedule('0 3 * * *', async () => {
       console.error('❌ [INTELLIGENCE] MongoDB connection failed:', error);
       return;
     }
-    
+
     // Check if Gemini is available
     console.log('🤖 [INTELLIGENCE] Checking Gemini AI availability...');
     const geminiAvailable = await geminiService.isAvailable();
     console.log(`🤖 [INTELLIGENCE] Gemini AI available: ${geminiAvailable}`);
-    
+
     if (!geminiAvailable) {
       console.warn('⚠️ [INTELLIGENCE] Gemini AI not available, using fallback analysis');
     } else {
@@ -295,20 +295,20 @@ const intelligencePanelJob = cron.schedule('0 3 * * *', async () => {
     ];
 
     console.log(`🤖 [INTELLIGENCE] Processing ${allAssets.length} assets (${allAssets.filter(a => a.type === 'crypto').length} crypto, ${allAssets.filter(a => a.type === 'stock').length} stocks)...`);
-    
+
     let successCount = 0;
     let failureCount = 0;
     let geminiCount = 0;
     let fallbackCount = 0;
-    
+
     for (const asset of allAssets) {
       const assetStartTime = Date.now();
       const assetSymbol = asset.type === 'crypto' ? asset.short : asset.symbol; // Use short for crypto, full symbol for stocks
       console.log(`🤖 [INTELLIGENCE] Processing ${assetSymbol} (${asset.type})...`);
-      
+
       try {
         let summary;
-        
+
         // Try Gemini first, fallback to basic analysis if it fails
         if (geminiAvailable) {
           try {
@@ -331,7 +331,7 @@ const intelligencePanelJob = cron.schedule('0 3 * * *', async () => {
           summary = await generateFallbackAnalysis(assetSymbol);
           fallbackCount++;
         }
-        
+
         if (summary) {
           // Cache the summary
           INTELLIGENCE_CACHE.set(assetSymbol.toUpperCase(), {
@@ -382,7 +382,7 @@ const getIntelligenceData = (assetSymbol) => {
 // Manual trigger for testing
 const runIntelligencePanelJob = async () => {
   console.log('🚀 Manually running intelligence panel job...');
-  
+
   try {
     // Connect to MongoDB if not connected
     if (mongoose.connection.readyState !== 1) {
@@ -402,12 +402,12 @@ const runIntelligencePanelJob = async () => {
     ];
 
     console.log(`Processing ${allAssets.length} assets...`);
-    
+
     for (const asset of allAssets) {
       try {
         const assetSymbol = asset.type === 'crypto' ? asset.short : asset.symbol; // Use short for crypto, full symbol for stocks
         let summary;
-        
+
         // Try Gemini first, fallback to basic analysis if it fails
         if (geminiAvailable) {
           try {
@@ -423,7 +423,7 @@ const runIntelligencePanelJob = async () => {
         } else {
           summary = await generateFallbackAnalysis(assetSymbol);
         }
-        
+
         if (summary) {
           // Cache the summary
           INTELLIGENCE_CACHE.set(assetSymbol.toUpperCase(), {

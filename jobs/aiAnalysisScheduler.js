@@ -6,6 +6,7 @@ const Comment = require('../models/Comment');
 const SentimentVote = require('../models/SentimentVote');
 const TradeIntentVote = require('../models/TradeIntentVote');
 const geminiService = require('../services/geminiService');
+const groqService = require('../services/groqService');
 const Intelligence = require('../models/Intelligence');
 require('dotenv').config();
 
@@ -17,7 +18,7 @@ const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const getAllAssets = () => {
   return [
     ...cryptoAssets.map(asset => ({ symbol: asset.symbol, name: asset.name, type: 'crypto', short: asset.short })),
-    ...stockAssets.map(asset => ({ symbol: asset.symbol, name: asset.name, type: 'stock', short: asset.short }))
+    ...stockAssets.map(asset => ({ symbol: asset.symbol, name: asset.name, type: 'stock', short: asset.symbol }))
   ];
 };
 
@@ -34,6 +35,8 @@ const getFreeNewsData = async (asset) => {
     let symbol = asset.short;
     if (asset.type === 'stock') {
       symbol = `${symbol}.NS`; // Indian stocks
+    } else if (asset.type === 'crypto') {
+      symbol = asset.symbol; // Use full Binance symbol for better Finnhub news coverage
     }
 
     // Get news from last 7 days
@@ -72,7 +75,7 @@ const analyzeAssetForAI = async (asset) => {
 
     // Get recent comments
     const recentComments = await Comment.find({
-      assetSymbol: asset.short.toUpperCase(),
+      asset: asset.short.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
       .sort({ createdAt: -1 })
@@ -81,7 +84,7 @@ const analyzeAssetForAI = async (asset) => {
 
     // Get sentiment votes
     const sentimentVotes = await SentimentVote.find({
-      assetSymbol: asset.short.toUpperCase(),
+      asset: asset.short.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
       .sort({ createdAt: -1 })
@@ -90,7 +93,7 @@ const analyzeAssetForAI = async (asset) => {
 
     // Get trade intent votes
     const tradeVotes = await TradeIntentVote.find({
-      assetSymbol: asset.short.toUpperCase(),
+      asset: asset.short.toUpperCase(),
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     })
       .sort({ createdAt: -1 })
