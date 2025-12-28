@@ -243,7 +243,8 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
         }
       });
       const prompt = `
-        Generate 6 news items for this week related to Crypto, Stocks, and Politics affecting markets.
+        Generate 6 news items for this week related to Crypto, Stocks, and Politics that are STRICTLY focused on or significantly impact India, the Indian market (NSE/BSE), and Indian investors.
+        Ensure information is relevant to an Indian audience.
         For each news item, also generate a relevant poll question with 3-4 options.
         
         Return the response in strictly valid JSON format with the following structure:
@@ -252,7 +253,7 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
             "title": "News Title",
             "summary": "Short summary",
             "content": "Longer content...",
-            "source": "Source Name (e.g., Bloomberg, CoinDesk)",
+            "source": "Source Name (e.g., Economic Times, Moneycontrol, NDTV)",
             "category": "Crypto" | "Stocks" | "Politics",
             "sentiment": "bullish" | "bearish" | "neutral",
             "poll": {

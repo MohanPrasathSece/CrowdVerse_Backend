@@ -130,7 +130,9 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
     async generateNewsAndPolls() {
         if (!this.groq) throw new Error('Groq not initialized');
         try {
-            const prompt = `Generate 3 current market news items for Crypto, Stocks, and Politics. For each item, also generate a relevant poll question with 3 options.
+            const prompt = `Generate 3 current market news items for Crypto, Stocks, and Politics that are STRICTLY related to or directly affect India/Indians. 
+            Focus on Indian markets (NSE/BSE), Indian digital asset regulations, and Indian political/economic events.
+            For each item, also generate a relevant poll question with 3 options.
             Return ONLY a valid JSON array of objects with this structure:
             [
               {

@@ -50,14 +50,14 @@ router.get('/', async (req, res) => {
                     let newsCategory = '';
 
                     if (category === 'crypto') {
-                        query = 'cryptocurrency OR bitcoin OR ethereum';
+                        query = '(cryptocurrency OR bitcoin OR ethereum OR "digital asset" OR web3) AND (India OR "Indian Rupee" OR "RBI crypto" OR WazirX OR CoinDCX OR "Indian government")';
                         newsCategory = 'Crypto';
                     } else if (category === 'stocks') {
-                        query = 'stock market OR nasdaq OR dow jones OR trading';
+                        query = '("Indian stock market" OR BSE OR NSE OR Nifty OR Sensex OR "SEBI regulations" OR "Indian companies")';
                         newsCategory = 'Stocks';
                     } else {
-                        query = 'economy OR federal reserve OR inflation';
-                        newsCategory = 'Politics';
+                        query = '("Indian economy" OR "RBI policy" OR "India GST" OR "Indian finance" OR "Budget of India")';
+                        newsCategory = 'Economy';
                     }
 
                     try {
@@ -65,8 +65,9 @@ router.get('/', async (req, res) => {
                             params: {
                                 q: query,
                                 language: 'en',
-                                sortBy: 'publishedAt',
-                                pageSize: 3,
+                                sortBy: 'relevancy',
+                                pageSize: 5,
+                                domains: 'livemint.com,economicstimes.indiatimes.com,moneycontrol.com,ndtv.com,business-standard.com',
                                 apiKey: NEWS_API_KEY
                             }
                         });
