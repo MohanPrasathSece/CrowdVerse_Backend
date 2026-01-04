@@ -13,6 +13,10 @@ const pollSchema = new mongoose.Schema(
         ],
         voters: [{ type: mongoose.Schema.Types.Mixed }], // Store user IDs or IPs to prevent double voting
         aiSummary: { type: String, default: '' },
+        aiNewsSummary: { type: String, default: '' },
+        aiCommentsSummary: { type: String, default: '' },
+        aiSentimentSummary: { type: String, default: '' },
+        aiFinalSummary: { type: String, default: '' },
         expiresAt: { type: Date }
     },
     { timestamps: true }
