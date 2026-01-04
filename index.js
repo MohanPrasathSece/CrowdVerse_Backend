@@ -103,7 +103,7 @@ app.get('/health', async (req, res) => {
     const mongoose = require('mongoose');
     const dbState = mongoose.connection.readyState;
     const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
-    
+
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -126,6 +126,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/assets', require('./routes/asset'));
 app.use('/api/ai-summary', require('./routes/aiSummary'));
 app.use('/api/news', require('./routes/news'));
+app.use('/api/predictions', require('./routes/predictions'));
+app.use('/api/beta', require('./routes/beta'));
 
 // Serve React build in production
 if (process.env.NODE_ENV === 'production') {

@@ -29,19 +29,24 @@ const cleanText = (text) => {
         .trim();
 };
 
-// Get weekly news (auto-generate if missing)
+// Get weekly news (auto-generate if missing or stale)
 router.get('/', async (req, res) => {
     try {
         const weekId = getWeekId();
+        // Fetch news for current week, sorted by newest first
         let news = await News.find({ weekId }).sort({ createdAt: -1 });
 
-        if (news.length === 0) {
-            console.log('Fetching news for week:', weekId);
+        // Check if news is stale (older than 24 hours) or missing
+        const isStale = news.length === 0 || (new Date() - new Date(news[0].createdAt) > 24 * 60 * 60 * 1000);
+
+        if (isStale) {
+            console.log('News is missing or stale. Fetching fresh news...');
             try {
                 const axios = require('axios');
                 const NEWS_API_KEY = process.env.NEWS_API_KEY || ''; // Get free key from newsapi.org
 
                 // Fetch news from NewsAPI (free tier allows 100 requests/day)
+                // Broadened categories for global + local mix
                 const categories = ['crypto', 'stocks', 'politics'];
                 const allArticles = [];
 
@@ -65,12 +70,12 @@ router.get('/', async (req, res) => {
                             params: {
                                 q: query,
                                 language: 'en',
-                                sortBy: 'relevancy',
+                                sortBy: 'publishedAt',
                                 pageSize: 5,
-                                domains: 'livemint.com,economicstimes.indiatimes.com,moneycontrol.com,ndtv.com,business-standard.com',
                                 apiKey: NEWS_API_KEY
                             }
                         });
+
 
                         if (response.data && response.data.articles) {
                             response.data.articles.forEach(article => {
@@ -114,6 +119,10 @@ router.get('/', async (req, res) => {
                         }
 
                         for (const item of generatedData) {
+                            // Check for duplicates
+                            const exists = await News.findOne({ title: item.title });
+                            if (exists) continue;
+
                             const newNews = new News({
                                 title: item.title,
                                 summary: item.summary,
@@ -138,12 +147,15 @@ router.get('/', async (req, res) => {
                         console.error('Gemini also failed, using sample news:', geminiErr.message);
                         // Use sample news as last resort
                         const sampleNews = [
-                            { title: 'Bitcoin Maintains Strength Above ₹50L Mark', summary: 'Bitcoin continues to show resilience as institutional adoption grows.', content: 'Major financial institutions are increasing their crypto allocations.', source: 'Crypto News', category: 'Crypto', sentiment: 'bullish' },
-                            { title: 'Stock Markets Show Mixed Signals', summary: 'Major indices fluctuate as investors digest latest economic indicators.', content: 'Market participants are closely watching inflation data.', source: 'Market Watch', category: 'Stocks', sentiment: 'neutral' },
-                            { title: 'Central Bank Policy Decisions Impact Markets', summary: 'Policy makers signal cautious approach to interest rates.', content: 'Economic outlook remains uncertain.', source: 'Economic Times', category: 'Politics', sentiment: 'neutral' }
+                            { title: 'Bitcoin Maintains Strength Above ₹50L Mark', summary: 'Bitcoin continues to show resilience as institutional adoption grows.', content: 'Major financial institutions are increasing their crypto allocations.', url: 'http://sample.com/1', source: 'Crypto News', category: 'Crypto', sentiment: 'bullish' },
+                            { title: 'Stock Markets Show Mixed Signals', summary: 'Major indices fluctuate as investors digest latest economic indicators.', content: 'Market participants are closely watching inflation data.', url: 'http://sample.com/2', source: 'Market Watch', category: 'Stocks', sentiment: 'neutral' },
+                            { title: 'Central Bank Policy Decisions Impact Markets', summary: 'Policy makers signal cautious approach to interest rates.', content: 'Economic outlook remains uncertain.', url: 'http://sample.com/3', source: 'Economic Times', category: 'Politics', sentiment: 'neutral' }
                         ];
 
                         for (const article of sampleNews) {
+                            const exists = await News.findOne({ title: article.title });
+                            if (exists) continue;
+
                             const newNews = new News({ ...article, weekId });
                             const savedNews = await newNews.save();
                             const newPoll = new Poll({
@@ -157,6 +169,10 @@ router.get('/', async (req, res) => {
                 } else {
                     // Save fetched news and generate polls using Gemini
                     for (const article of allArticles.slice(0, 7)) {
+                        // Check for duplicates
+                        const exists = await News.findOne({ url: article.url });
+                        if (exists) continue;
+
                         const newNews = new News({
                             title: article.title,
                             summary: article.summary,
@@ -245,21 +261,62 @@ router.get('/', async (req, res) => {
 });
 
 // Vote on a poll
-router.post('/vote/:pollId', async (req, res) => {
+router.post('/vote/:pollId', protect, async (req, res) => {
     try {
         const { optionIndex } = req.body;
-        const poll = await Poll.findById(req.params.pollId);
+        const userId = req.user.isGuest ? req.user.id : req.user._id.toString();
 
+        const poll = await Poll.findById(req.params.pollId);
         if (!poll) return res.status(404).json({ message: 'Poll not found' });
 
-        // Simple vote increment (in real app, check if user already voted)
+        // Initialize voters if needed
+        if (!poll.voters) poll.voters = [];
+
+        // Check if user has already voted and where
+        // Older records might be just strings, newer ones objects {userId, optionIndex}
+        let previousVoteIndex = -1;
+        let previousVoteEntry = -1;
+
+        for (let i = 0; i < poll.voters.length; i++) {
+            const v = poll.voters[i];
+            if (typeof v === 'object' && v !== null) {
+                if (String(v.userId) === String(userId)) {
+                    previousVoteIndex = v.optionIndex;
+                    previousVoteEntry = i;
+                    break;
+                }
+            } else if (String(v) === String(userId)) {
+                // If it's a legacy string-only entry, we don't know the index
+                // We'll treat it as -1 and just remove it
+                previousVoteIndex = -2; // Marker for "voted but index unknown"
+                previousVoteEntry = i;
+                break;
+            }
+        }
+
+        if (previousVoteIndex === optionIndex) {
+            // User voted for the same thing, just return
+            return res.json(poll);
+        }
+
+        // Remove previous vote if exists
+        if (previousVoteEntry !== -1) {
+            if (previousVoteIndex >= 0 && poll.options[previousVoteIndex]) {
+                poll.options[previousVoteIndex].votes = Math.max(0, poll.options[previousVoteIndex].votes - 1);
+            }
+            poll.voters.splice(previousVoteEntry, 1);
+        }
+
+        // Add new vote
         if (poll.options[optionIndex]) {
             poll.options[optionIndex].votes += 1;
+            poll.voters.push({ userId, optionIndex });
             await poll.save();
         }
 
         res.json(poll);
     } catch (err) {
+        console.error('Vote error:', err);
         res.status(500).json({ message: 'Server Error' });
     }
 });

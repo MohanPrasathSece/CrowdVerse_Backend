@@ -12,7 +12,7 @@ const commentSchema = new mongoose.Schema(
     sentiment: { type: String, enum: ['bullish', 'bearish', 'neutral'], default: null },
     sentimentConfidence: { type: Number, min: 0, max: 1, default: null },
     keyPoints: [{ type: String, trim: true }],
-    category: { type: String, enum: ['technical', 'fundamental', 'news', 'general'], default: 'general' },
+    category: { type: String, enum: ['technical', 'fundamental', 'news', 'general', 'prediction'], default: 'general' },
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null }
   },
   { timestamps: true }
