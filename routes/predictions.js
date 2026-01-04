@@ -9,21 +9,29 @@ const seedPredictions = async () => {
         {
             question: "Will AI surpass human intelligence (AGI) be achieved by the end of 2026?",
             options: ["Yes", "No", "Maybe, but regulated heavily."],
-            aiNewsSummary: "Global tech giants like OpenAI, Anthropic, and Google are accelerating compute clusters. Recent breakthroughs in reasoning models (o1-style) suggest a shorter timeline than previously anticipated by experts.",
-            aiCommentsSummary: "Reddit's r/Singularity is highly bullish, while X (formerly Twitter) remains divided between safety researchers warning of doom and 'e/acc' proponents pushing for faster development.",
-            aiSentimentSummary: "Exponential growth in LLM capabilities indicates a 40% probability of reaching human-level reasoning across most cognitive tasks by late 2026.",
+            aiNewsSummary: "Global tech giants like OpenAI, Anthropic, and Google are accelerating compute clusters. Recent breakthroughs in reasoning models suggest a shorter timeline than previously anticipated by experts.",
+            aiCommentsSummary: "Reddit's r/Singularity is highly bullish, while X remains divided between safety researchers warning of doom and e/acc proponents pushing for faster development.",
+            aiSentimentSummary: "Exponential growth in LLM capabilities indicates a significant probability of reaching human-level reasoning across most cognitive tasks by late 2026.",
             aiFinalSummary: "While technical hurdles remain in embodied AI and long-term memory, the consensus lean is 'Highly Likely' for narrow AGI, though public perception lags."
         },
         {
-            question: "Will the US presidential election lead to a female president?",
-            options: ["Yes", "No", "Too close to call."],
-            aiNewsSummary: "The 2024 results have shifted the 2026-2028 landscape. Key figures in both parties are emerging as frontrunners, with gender becoming a secondary factor to economic policy in recent polling data.",
-            aiCommentsSummary: "Political forums indicate a strong desire for 'new era' leadership. Significant discussion around Kamala Harris, Nikki Haley, and Michelle Obama continues to drive high engagement.",
-            aiSentimentSummary: "Demographic shifts in swing states suggest that a moderate female candidate would perform 3-4% better than traditional male counterparts in suburban districts.",
-            aiFinalSummary: "The probability is at an all-time high of 55%, but party unity and economic conditions in early 2026 will be the ultimate decider."
+            question: "Will Rahul Gandhi be the next PM?",
+            options: ["Yes.", "No."],
+            aiNewsSummary: "Recent election results and the Bharat Jodo Yatra have significantly altered Rahul Gandhi's public image. The INDIA alliance's performance in the 2024 elections has made the 2029 (or earlier) race highly competitive.",
+            aiCommentsSummary: "Digital discourse is split between supporters who see a 'reborn' leader and skeptics who question the alliance's ability to remain united against the NDA's organizational strength.",
+            aiSentimentSummary: "Sentiment polls show a rising favorability rating (approx +12% since 2023) in urban centers, though rural strongholds remain a battleground.",
+            aiFinalSummary: "Numerical superiority in the Lok Sabha is the only metric that matters. While momentum is with the opposition, the incumbent's machinery remains a formidable hurdle."
         },
         {
-            question: "Will climate change cause a major city to become uninhabitable by 2026?",
+            question: "Will USA control Venezuela Oil Reserves and impose Rothschild Banks?",
+            options: ["Yes, USA is evil", "No, USA had noble intentions"],
+            aiNewsSummary: "Geopolitical tensions in the region continue as energy security becomes a top priority for global powers. Sanctions and diplomatic maneuvers are frequently interpreted through the lens of resource control.",
+            aiCommentsSummary: "Anti-imperialist circles and energy analysts frequently debate the true motives behind foreign intervention in South America, citing historical precedents in Iraq and Libya.",
+            aiSentimentSummary: "Global sentiment index shows deep skepticism (70%+) regarding Western intervention in resource-rich nations, regardless of the stated humanitarian goals.",
+            aiFinalSummary: "The collision of 'Economic Sovereignty' and 'Global Security' will likely result in continued sanctions rather than overt control by 2026."
+        },
+        {
+            question: "Will climate change cause a major city to become uninhabitable due to rising seas or extreme weather in 2026?",
             options: ["Yes (e.g., Miami, Dhaka)", "No, we’ll adapt", "It’s already happening."],
             aiNewsSummary: "Rising sea levels are already impacting infrastructure in Jakarta and Miami. 2025 saw record-breaking temperatures that strained power grids and water supplies in major metropolitan hubs.",
             aiCommentsSummary: "Doomscrolling on climate forums is peaking, though architectural communities are highlighting innovative 'sponge city' designs as a way to defend against the inevitability.",
@@ -35,7 +43,7 @@ const seedPredictions = async () => {
             options: ["Yes, dominating", "No, rivals step up", "It’ll be a close final."],
             aiNewsSummary: "With the 2026 T20 World Cup being co-hosted by India and Sri Lanka, the Men in Blue have a massive home-ground advantage. The current squad depth is considered the best in a decade.",
             aiCommentsSummary: "Social media is buzzing with 'Bleed Blue' campaigns. However, fans are cautious about 'knockout curses' that have plagued the team in previous ICC events.",
-            aiSentimentSummary: "Home advantage statistically yields a 15% boost in win probability for India. Current form of young superstars like Jaiswal and Gill is exceptionally high.",
+            aiSentimentSummary: "Home advantage statistically yields a 15% boost in win probability for India. Current form of young superstars is exceptionally high.",
             aiFinalSummary: "India is the clear favorite (65% confidence), but the high-pressure environment of a home final remains the biggest mental hurdle."
         },
         {
@@ -47,10 +55,10 @@ const seedPredictions = async () => {
             aiFinalSummary: "An uncrewed landing is 70% likely, but humans on the surface by 2026 remains a 15% long-shot. Partial success via orbit is the middle ground."
         },
         {
-            question: "Will cryptocurrency become the dominant global payment method by end of 2026?",
+            question: "Will cryptocurrency become the dominant global payment method over fiat by end of 2026?",
             options: ["Yes, mass adoption", "No, regulations kill it", "Hybrid system emerges."],
             aiNewsSummary: "Bitcoin ETFs have institutionalized the asset. CBDCs from major central banks are now entering pilot phases, bridging the gap between traditional fiat and blockchain tech.",
-            aiCommentsSummary: "Crypto Twitter (CT) is predicting the 'hyperbitcoinization' of the global south, while r/Finance warns of massive volatility and lack of consumer protections slowing down retail.",
+            aiCommentsSummary: "Crypto Twitter is predicting the 'hyperbitcoinization' of the global south, while r/Finance warns of massive volatility and lack of consumer protections slowing down retail.",
             aiSentimentSummary: "Stablecoin volume has surpassed Visa's quarterly throughput in certain sectors. The trend is moving toward 'Invisible Crypto'—blockchain backends for bank apps.",
             aiFinalSummary: "A Hybrid System is the only realistic 2026 outcome. Fiat isn't dying yet, but it's increasingly living on-chain."
         },
@@ -63,23 +71,15 @@ const seedPredictions = async () => {
             aiFinalSummary: "The edge remains with the incumbent (BJP) due to organizational strength, but the margin of victory is expected to narrow significantly compared to 2022."
         },
         {
-            question: "Will Article 370 be fully reinstated in Jammu & Kashmir by end of 2026?",
-            options: ["Yes, Supreme Court twist", "No, Modi govt holds firm", "Partial changes, but status quo mostly."],
-            aiNewsSummary: "The Supreme Court verdict upholding the abrogation has set a strong legal precedent. Current government policy is focused on statehood restoration after delimitation and elections.",
-            aiCommentsSummary: "J&K subreddits are focused on the restoration of statehood and high-speed internet stability rather than the full return of 370, which many see as historically settled.",
-            aiSentimentSummary: "Legal and political analysts see a 5% chance of reinstatement. The focus has shifted from 'Article 370' to 'Statehood' in 90% of political discourse.",
-            aiFinalSummary: "Status quo holds firm. The political center of gravity has moved toward administrative integration and economic development."
-        },
-        {
             question: "Will Arvind Kejriwal’s AAP expand to win a state outside Delhi/Punjab in 2026?",
             options: ["Yes, Gujarat or Haryana breakthrough", "No, regional parties block ’em", "Minor gains, but no full win."],
             aiNewsSummary: "AAP is aggressively targeting Haryana and certain pockets of Gujarat. The 'Delhi Model' is being used as a template, but competing with established regional players remains difficult.",
             aiCommentsSummary: "Voters are discussing the 'Third Front' possibility. Discussion on AAP is high in middle-class urban circles, but rural penetration remains a challenge.",
-            aiSentimentSummary: "Vote share projections show a consistent rise (2-4%) in target states, but translating that into seats against a unified opposition or a dominant BJP is the hurdle.",
+            aiSentimentSummary: "Vote share projections show a consistent rise (2-4%) in target states, but translating that into seats against a unified opposition is the hurdle.",
             aiFinalSummary: "Minor gains are the most statistical outcome. A full state victory by 2026 is less likely than a 'kingmaker' role in a hung assembly."
         },
         {
-            question: "Will the Indian economy surpass China’s growth rate in 2026?",
+            question: "Will the Indian economy surpass China’s growth rate in 2026 under current govt?",
             options: ["Yes, reforms pay off", "No, global slowdown hits harder", "Neck-and-neck, debatable stats."],
             aiNewsSummary: "India is currently the fastest-growing major economy. Manufacturing shifts (China+1 strategy) are bringing massive FDI, while China's aging population and property sector woes create a drag.",
             aiCommentsSummary: "Economic subreddits are debating whether the 'per capita' gap is more important than the 'GDP growth' rate in measuring real-world impact for citizens.",
@@ -89,11 +89,12 @@ const seedPredictions = async () => {
     ];
 
     try {
-        const firstPoll = await Poll.findOne({ category: 'prediction', question: predictionData[0].question });
-        const needsRefresh = !firstPoll || (await Poll.countDocuments({ category: 'prediction' })) < 10;
+        const firstPoll = await Poll.findOne({ category: 'prediction', question: predictionData[1].question });
+        // Force refresh if the new question doesn't exist or count is wrong
+        const needsRefresh = !firstPoll || (await Poll.countDocuments({ category: 'prediction' })) !== 10;
 
         if (needsRefresh) {
-            console.log('Refreshing prediction polls with user-requested 10 items...');
+            console.log('Refreshing prediction polls with user-requested data...');
             await Poll.deleteMany({ category: 'prediction' });
 
             for (const item of predictionData) {
@@ -120,14 +121,14 @@ const seedPredictions = async () => {
 
                 for (const text of sampleComments) {
                     await Comment.create({
-                        asset: savedPoll._id, // Use ID as string
+                        asset: savedPoll._id,
                         text,
                         category: 'prediction',
-                        user: '65a1234567890abcdef12345' // Handled as dummy or guest in logic usually
+                        user: '65a1234567890abcdef12345'
                     });
                 }
             }
-            console.log('Seed completed successfully for 10 items.');
+            console.log('Seed completed successfully.');
         }
     } catch (err) {
         console.error('Seed error:', err);
@@ -148,23 +149,20 @@ router.get('/', async (req, res) => {
 // POST a vote to a prediction poll
 router.post('/:id/vote', async (req, res) => {
     const { optionIndex } = req.body;
-    const userId = req.user ? req.user._id : (req.headers['x-forwarded-for'] || req.socket.remoteAddress); // Fallback for guest voting
+    const userId = req.user ? req.user._id : (req.headers['x-forwarded-for'] || req.socket.remoteAddress);
 
     try {
         const poll = await Poll.findById(req.params.id);
         if (!poll) return res.status(404).json({ message: 'Poll not found' });
 
-        // Check if already voted (simplified logic for prediction polls)
         const travelerId = userId.toString();
         const alreadyVoted = poll.voters.find(v => v.userId === travelerId);
 
         if (alreadyVoted) {
-            // Remove previous vote
             poll.options[alreadyVoted.optionIndex].votes -= 1;
             poll.voters = poll.voters.filter(v => v.userId !== travelerId);
         }
 
-        // Add new vote
         poll.options[optionIndex].votes += 1;
         poll.voters.push({ userId: travelerId, optionIndex });
 
