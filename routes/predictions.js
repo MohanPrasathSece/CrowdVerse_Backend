@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Poll = require('../models/Poll');
 const Comment = require('../models/Comment');
+const geminiService = require('../services/geminiService');
 
 // Initial seed data for predictions
 const seedPredictions = async () => {
@@ -90,7 +91,6 @@ const seedPredictions = async () => {
 
     try {
         const firstPoll = await Poll.findOne({ category: 'prediction', question: predictionData[1].question });
-        // Force refresh if the new question doesn't exist or count is wrong
         const needsRefresh = !firstPoll || (await Poll.countDocuments({ category: 'prediction' })) !== 10;
 
         if (needsRefresh) {
@@ -170,6 +170,45 @@ router.post('/:id/vote', async (req, res) => {
         res.json(poll);
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+
+// POST to analyze prediction comments and update AI summary
+router.post('/:id/analyze', async (req, res) => {
+    try {
+        const poll = await Poll.findById(req.params.id);
+        if (!poll) return res.status(404).json({ message: 'Poll not found' });
+
+        // Fetch recent comments for this prediction
+        const comments = await Comment.find({ asset: poll._id }).sort({ createdAt: -1 }).limit(20);
+        const commentTexts = comments.map(c => c.text);
+
+        // Prepare data for AI analysis
+        const assetData = {
+            assetSymbol: `PRE-${poll._id.slice(-6).toUpperCase()}`,
+            assetName: poll.question,
+            recentNews: "",
+            userComments: commentTexts.join('\n'),
+            sentimentData: {
+                totalVotes: poll.options.reduce((acc, opt) => acc + opt.votes, 0),
+                breakdown: poll.options.map(opt => ({ text: opt.text, count: opt.votes }))
+            }
+        };
+
+        console.log(`🤖 Analyzing prediction: ${poll.question}`);
+        const analysis = await geminiService.generateIntelligenceAnalysis(assetData);
+
+        // Update the poll with new AI insights
+        poll.aiNewsSummary = analysis.global_news_summary;
+        poll.aiCommentsSummary = analysis.user_comments_summary;
+        poll.aiSentimentSummary = analysis.market_sentiment_summary;
+        poll.aiFinalSummary = analysis.final_summary;
+
+        await poll.save();
+        res.json(poll);
+    } catch (err) {
+        console.error('AI Analysis failed:', err);
+        res.status(500).json({ message: 'AI Analysis failed', error: err.message });
     }
 });
 
