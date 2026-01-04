@@ -86,12 +86,21 @@ const seedPredictions = async () => {
             aiCommentsSummary: "Economic subreddits are debating whether the 'per capita' gap is more important than the 'GDP growth' rate in measuring real-world impact for citizens.",
             aiSentimentSummary: "IMF and World Bank projects favor India for the 'Growth Rate' crown through 2027. The delta is expected to be around 1.5% in India's favor.",
             aiFinalSummary: "In terms of 'Rate (%)', India is almost certain to win. In terms of 'Absolute Wealth Added', China will likely still hold the lead due to its larger base."
+        },
+        {
+            question: "Does India need a GenZ protest like Nepal?",
+            options: ["yes, soon in 2026", "yes, but not right now", "maybe, if the government doesn’t listen", "No, Modi government is perfect"],
+            aiNewsSummary: "Political analysts draw parallels between the recent youth-led movements in neighbor nations and the rising digital activism in India. Unemployment and educational reforms remain the primary triggers for student mobilization.",
+            aiCommentsSummary: "Social media is home to a growing 'youth-first' political discourse. While some call for structural disruption, others argue that existing democratic channels are sufficient for grievance redressal.",
+            aiSentimentSummary: "Internal surveys suggest that 55% of GenZ respondents feel a disconnect from traditional political party machineries, favoring direct action logic.",
+            aiFinalSummary: "A massive singular 'uprising' is less likely than localized, issue-based mobilizations (e.g., Agnipath, Farmers). The stability of the current administration remains the primary deterrent."
         }
     ];
 
     try {
-        const firstPoll = await Poll.findOne({ category: 'prediction', question: predictionData[1].question });
-        const needsRefresh = !firstPoll || (await Poll.countDocuments({ category: 'prediction' })) !== 10;
+        const lastQuestion = predictionData[predictionData.length - 1].question;
+        const targetPoll = await Poll.findOne({ category: 'prediction', question: lastQuestion });
+        const needsRefresh = !targetPoll || (await Poll.countDocuments({ category: 'prediction' })) !== predictionData.length;
 
         if (needsRefresh) {
             console.log('Refreshing prediction polls with user-requested data...');

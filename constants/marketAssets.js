@@ -24,7 +24,16 @@ const stockAssets = [
   { symbol: 'KOTAKBANK', twelvedataSymbol: 'KOTAKBANK.NSE', name: 'Kotak Mahindra Bank Ltd.' },
 ];
 
+const commodityAssets = [
+  { symbol: 'GOLD', name: 'Gold (24K)', short: 'GOLD' },
+  { symbol: 'SILVER', name: 'Silver', short: 'SILVER' },
+  { symbol: 'COPPER', name: 'Copper', short: 'COPPER' },
+  { symbol: 'SILICON', name: 'Silicon', short: 'SILICON' },
+  { symbol: 'CRUDEOIL', name: 'Crude Oil', short: 'CRUDE' },
+];
+
 module.exports = {
   cryptoAssets,
   stockAssets,
+  commodityAssets,
 };
