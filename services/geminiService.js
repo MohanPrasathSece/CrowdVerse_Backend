@@ -243,22 +243,30 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
         }
       });
       const prompt = `
-        Generate 6 news items for this week related to Crypto, Stocks, and Politics that are STRICTLY focused on or significantly impact India, the Indian market (NSE/BSE), and Indian investors.
-        Ensure information is relevant to an Indian audience.
-        For each news item, also generate a relevant poll question with 3-4 options.
+        Generate 10 trending news items strictly focused on Global Politics, Geopolitics, Foreign Affairs, and Indian National Policy.
+        The context is the current time (early 2026).
+        
+        For each news item:
+        1. "title": Catchy, professional headline.
+        2. "summary": A single, completely full paragraph (80-120 words) that summarizes the entire story. Do NOT truncate.
+        3. "content": Two to three detailed paragraphs explaining the background, event, and implications.
+        4. "source": A credible source name (e.g., Reuters, AP, The Hindu, Indian Express, BBC).
+        5. "category": "Politics" or "Geopolitics" or "Foreign Affairs".
+        6. "sentiment": "bullish" | "bearish" | "neutral" (relevant to stability).
+        7. "poll": A provocative question "Impact on Indian society & economy?" with options ["Positive", "Neutral", "Negative"].
         
         Return the response in strictly valid JSON format with the following structure:
         [
           {
-            "title": "News Title",
-            "summary": "Short summary",
-            "content": "Longer content...",
-            "source": "Source Name (e.g., Economic Times, Moneycontrol, NDTV)",
-            "category": "Crypto" | "Stocks" | "Politics",
-            "sentiment": "bullish" | "bearish" | "neutral",
+            "title": "...",
+            "summary": "...",
+            "content": "...",
+            "source": "...",
+            "category": "...",
+            "sentiment": "...",
             "poll": {
-              "question": "Poll Question?",
-              "options": ["Option 1", "Option 2", "Option 3"]
+              "question": "...",
+              "options": ["Positive", "Neutral", "Negative"]
             }
           }
         ]

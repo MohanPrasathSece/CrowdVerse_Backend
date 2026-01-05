@@ -24,7 +24,6 @@ const cleanText = (text) => {
         .replace(/<[^>]*>/g, '') // Remove HTML tags
         .replace(/\{[^}]*\}/g, '') // Remove inline scripts
         .replace(/window\.open.*?;/g, '') // Remove window.open calls
-        .replace(/\[.*?\]/g, '') // Remove square brackets content
         .replace(/\s+/g, ' ') // Normalize whitespace
         .trim();
 };
@@ -55,10 +54,10 @@ router.get('/', async (req, res) => {
         const categoryCount = await News.countDocuments(query);
         const globalCount = await News.countDocuments({ weekId });
 
-        // Stale if no news at all, or no news for this category, or oldest news is > 24h old
+        // Stale if no news at all, or no news for this category, or oldest news is > 3 days old
         const isStale = globalCount === 0 ||
             (filterCategory && categoryCount === 0) ||
-            (news.length > 0 && new Date() - new Date(news[0].createdAt) > 24 * 60 * 60 * 1000);
+            (news.length > 0 && new Date() - new Date(news[0].createdAt) > 3 * 24 * 60 * 60 * 1000);
 
         if (isStale) {
             console.log(`News for category "${filterCategory || 'All'}" is missing or stale. Fetching fresh news...`);
@@ -85,79 +84,71 @@ router.get('/', async (req, res) => {
                 const seenTitles = new Set();
                 const seenUrls = new Set();
 
-                for (const item of categoriesToFetch) {
-                    const isRequested = !filterCategory ||
-                        filterCategory === 'All' ||
-                        (filterCategory === 'General' && ['Politics', 'Geopolitics'].includes(item.cat)) ||
-                        filterCategory === item.cat;
-
-                    if (!isRequested) continue;
-
+                if (filterCategory === 'General' || !filterCategory || filterCategory === 'All') {
                     try {
-                        let response;
-                        // For Politics/Geopolitics, try top-headlines first for "trending" impact
-                        if (item.useTop) {
-                            try {
-                                response = await axios.get('https://newsapi.org/v2/top-headlines', {
-                                    params: {
-                                        q: item.q.split(')')[0].replace(/[()"]/g, '').split(' OR ')[0], // Simple query for headlines
-                                        country: 'in',
-                                        pageSize: 10,
-                                        apiKey: NEWS_API_KEY
-                                    },
-                                    timeout: 7000
+                        console.log('🤖 Generating fresh World Intelligence using Gemini (Simulation Context 2026)...');
+                        const generatedNews = await geminiService.generateNewsAndPolls();
+
+                        if (Array.isArray(generatedNews)) {
+                            for (const item of generatedNews) {
+                                allArticles.push({
+                                    title: item.title,
+                                    summary: item.summary,
+                                    content: item.content,
+                                    source: item.source || 'Global Intelligence',
+                                    url: `https://google.com/search?q=${encodeURIComponent(item.title)}`, // Fallback URL
+                                    imageUrl: null,
+                                    publishedAt: new Date(),
+                                    category: item.category || 'Geopolitics',
+                                    sentiment: item.sentiment || 'neutral',
+                                    poll: item.poll
                                 });
-                            } catch (e) {
-                                console.log(`Top headlines failed for ${item.id}, falling back to everything...`);
                             }
                         }
+                    } catch (err) {
+                        console.error('Error generating news with Gemini:', err.message);
+                    }
+                } else {
+                    // Existing logic for specific money categories if needed
+                    for (const item of categoriesToFetch) {
+                        const isRequested = filterCategory === item.cat;
 
-                        // If top-headlines didn't work or wasn't used, use 'everything' sorted by popularity
-                        if (!response || !response.data || !response.data.articles || response.data.articles.length === 0) {
-                            response = await axios.get('https://newsapi.org/v2/everything', {
+                        if (!isRequested) continue;
+
+                        try {
+                            let response = await axios.get('https://newsapi.org/v2/everything', {
                                 params: {
                                     q: item.q,
                                     language: 'en',
-                                    sortBy: 'popularity', // Focus on most famous/linked news
-                                    pageSize: 20,
+                                    sortBy: 'publishedAt',
+                                    pageSize: 5,
                                     apiKey: NEWS_API_KEY
                                 },
                                 timeout: 7000
                             });
-                        }
 
-                        if (response.data && response.data.articles) {
-                            // Filter for quality: only news from major domains or with images to ensure "famous/trending" feel
-                            const filteredArticles = response.data.articles.filter(a => !!a.urlToImage);
+                            if (response.data && response.data.articles) {
+                                const filteredArticles = response.data.articles.filter(a => !!a.urlToImage);
+                                filteredArticles.slice(0, 5).forEach(article => {
+                                    const cleanTitle = cleanText(article.title).substring(0, 200);
+                                    if (!cleanTitle) return;
 
-                            filteredArticles.forEach(article => {
-                                const cleanTitle = cleanText(article.title).substring(0, 200);
-                                const url = article.url;
-
-                                if (!cleanTitle || cleanTitle.length < 15) return;
-                                if (!article.description && !article.content) return;
-
-                                // Deduplication within this fetch session
-                                if (seenTitles.has(cleanTitle.toLowerCase()) || seenUrls.has(url)) return;
-
-                                seenTitles.add(cleanTitle.toLowerCase());
-                                seenUrls.add(url);
-
-                                allArticles.push({
-                                    title: cleanTitle,
-                                    summary: cleanText(article.description || article.content || '').substring(0, 300),
-                                    content: cleanText(article.content || article.description || '').substring(0, 1000),
-                                    source: article.source?.name || 'News Source',
-                                    url: article.url,
-                                    imageUrl: article.urlToImage,
-                                    publishedAt: article.publishedAt,
-                                    category: item.cat,
-                                    sentiment: 'neutral'
+                                    allArticles.push({
+                                        title: cleanTitle,
+                                        summary: cleanText(article.description || ''),
+                                        content: cleanText(article.content || ''),
+                                        source: article.source?.name || 'News Source',
+                                        url: article.url,
+                                        imageUrl: article.urlToImage,
+                                        publishedAt: article.publishedAt,
+                                        category: item.cat,
+                                        sentiment: 'neutral'
+                                    });
                                 });
-                            });
+                            }
+                        } catch (err) {
+                            console.error(`Error fetching ${item.id} news:`, err.message);
                         }
-                    } catch (err) {
-                        console.error(`Error fetching ${item.id} news:`, err.message);
                     }
                 }
 
