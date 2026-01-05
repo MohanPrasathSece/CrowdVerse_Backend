@@ -30,7 +30,7 @@ class GeminiService {
 
     try {
       console.log(`🤖 [GEMINI] Initializing model for ${assetData.assetSymbol}...`);
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
       console.log(`✅ [GEMINI] Model initialized successfully`);
 
       const { assetSymbol, assetName, recentNews, userComments, sentimentData, marketData } = assetData;
@@ -211,10 +211,7 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
 
     try {
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-          temperature: 0.7,
-        }
+        model: 'gemini-pro'
       });
       const result = await model.generateContent(prompt);
       const response = await result.response;
@@ -230,47 +227,51 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
     }
   }
 
-  async generateNewsAndPolls() {
+  async generateNewsAndPolls(category = 'General') {
     if (!this.genAI) {
       throw new Error('Gemini AI service not initialized');
     }
 
     try {
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-          temperature: 0.7,
-        }
+        model: 'gemini-pro'
       });
+
+      let topicPrompt = '';
+      if (category === 'Crypto') topicPrompt = 'Cryptocurrency, Blockchain, Bitcoin, Ethereum, and DeFi market trends.';
+      else if (category === 'Stocks') topicPrompt = 'Global and Indian Stock Markets, Nifty, Sensex, and corporate earnings.';
+      else if (category === 'Commodities') topicPrompt = 'Gold, Silver, Crude Oil prices, and agricultural commodities.';
+      else topicPrompt = 'Global Politics, Geopolitics, International Relations, and Indian National Policy.';
+
       const prompt = `
-        Generate 10 trending news items strictly focused on Global Politics, Geopolitics, Foreign Affairs, and Indian National Policy.
-        The context is the current time (early 2026).
+        You are a senior financial & political editor for a top-tier intelligence dashboard in the year 2026.
+        Generate 5 high-impact, realistic news articles strictly focused on: ${topicPrompt}
         
-        For each news item:
+        For each article, you MUST provide:
         1. "title": Catchy, professional headline.
-        2. "summary": A single, completely full paragraph (80-120 words) that summarizes the entire story. Do NOT truncate.
-        3. "content": Two to three detailed paragraphs explaining the background, event, and implications.
-        4. "source": A credible source name (e.g., Reuters, AP, The Hindu, Indian Express, BBC).
-        5. "category": "Politics" or "Geopolitics" or "Foreign Affairs".
-        6. "sentiment": "bullish" | "bearish" | "neutral" (relevant to stability).
-        7. "poll": A provocative question "Impact on Indian society & economy?" with options ["Positive", "Neutral", "Negative"].
-        
-        Return the response in strictly valid JSON format with the following structure:
+        2. "summary": The COMPLETE, full news article (300-600 words). Do NOT truncate. Do NOT use "..." or "[+ chars]". This must be the entire story from beginning to end.
+        3. "content": The same COMPLETE, full news article as above.
+        4. "source": A credible fictional or real source name (e.g., "India Intel", "Reuters", "The Hindu", "CoinDesk").
+        5. "category": "${category}".
+        6. "sentiment": "bullish" | "bearish" | "neutral".
+        7. "poll": A relevant engagement question with 3 options.
+
+        Return the response in strictly valid JSON format:
         [
           {
             "title": "...",
             "summary": "...",
             "content": "...",
             "source": "...",
-            "category": "...",
+            "category": "${category}",
             "sentiment": "...",
             "poll": {
               "question": "...",
-              "options": ["Positive", "Neutral", "Negative"]
+              "options": ["A", "B", "C"]
             }
           }
         ]
-        Do not include any markdown formatting (like \`\`\`json). Just the raw JSON string.
+        Do not include markdown formatting.
       `;
 
       const result = await model.generateContent(prompt);

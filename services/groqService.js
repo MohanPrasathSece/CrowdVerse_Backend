@@ -127,27 +127,46 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
         return sections;
     }
 
-    async generateNewsAndPolls() {
+    async generateNewsAndPolls(category = 'General') {
         if (!this.groq) throw new Error('Groq not initialized');
         try {
-            const prompt = `Generate 3 current market news items for Crypto, Stocks, and Politics that are STRICTLY related to or directly affect India/Indians. 
-            Focus on Indian markets (NSE/BSE), Indian digital asset regulations, and Indian political/economic events.
-            For each item, also generate a relevant poll question with 3 options.
-            Return ONLY a valid JSON array of objects with this structure:
-            [
-              {
-                "category": "Crypto",
-                "title": "...",
-                "summary": "...",
-                "content": "...",
-                "sentiment": "bullish|bearish|neutral",
-                "source": "Groq Finance",
-                "poll": {
-                  "question": "...",
-                  "options": ["...", "...", "..."]
+            let topicPrompt = '';
+            if (category === 'Crypto') topicPrompt = 'Cryptocurrency, Blockchain, Bitcoin, Ethereum, and DeFi market trends.';
+            else if (category === 'Stocks') topicPrompt = 'Global and Indian Stock Markets, Nifty, Sensex, and corporate earnings.';
+            else if (category === 'Commodities') topicPrompt = 'Gold, Silver, Crude Oil prices, and agricultural commodities.';
+            else topicPrompt = 'Global Politics, Geopolitics, International Relations, and Indian National Policy.';
+
+            const prompt = `
+                You are a senior financial & political editor for a top-tier intelligence dashboard in the year 2026.
+                Generate 5 high-impact, realistic news articles strictly focused on: ${topicPrompt}
+                
+                For each article, you MUST provide:
+                1. "title": Catchy, professional headline.
+                2. "summary": The COMPLETE, full news article (300-600 words). Do NOT truncate. Do NOT use "..." or "[+ chars]". This must be the entire story from beginning to end.
+                3. "content": The same COMPLETE, full news article as above.
+                4. "source": A credible fictional or real source name (e.g., "Groq Intel", "Reuters", "The Hindu", "CoinDesk").
+                5. "category": "${category}".
+                6. "sentiment": "bullish" | "bearish" | "neutral".
+                7. "poll": A relevant engagement question with 3 options.
+
+                Return the response in strictly valid JSON format with the following structure:
+                {
+                  "articles": [
+                    {
+                      "title": "...",
+                      "summary": "...",
+                      "content": "...",
+                      "source": "...",
+                      "category": "${category}",
+                      "sentiment": "...",
+                      "poll": {
+                        "question": "...",
+                        "options": ["...", "...", "..."]
+                      }
+                    }
+                  ]
                 }
-              }
-            ]`;
+            `;
 
             const completion = await this.groq.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
@@ -158,10 +177,12 @@ Keep each section concise but insightful. Focus on actionable intelligence rathe
 
             const content = completion.choices[0]?.message?.content;
             let data = JSON.parse(content);
-            // Groq might return { "news": [...] } instead of just the array
-            if (data.news) data = data.news;
-            if (!Array.isArray(data)) data = [data];
-            return data;
+            if (data.articles) return data.articles;
+            // Fallback if AI returned just array or wrapped differently
+            if (data.news) return data.news;
+            if (Array.isArray(data)) return data;
+
+            return [];
         } catch (error) {
             console.error('❌ [GROQ] News generation failed:', error);
             throw error;
