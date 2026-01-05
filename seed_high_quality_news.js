@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 const News = require('./models/News');
+const Poll = require('./models/Poll');
 
 const static2026News = [
+    // GENERAL / POLITICS
     {
         title: "India's 'Digital Rupee' Usage Surpasses Cash in Metro Cities",
         summary: "In a historic shift for the economy, the Reserve Bank of India reports that CBDC transactions have officially overtaken physical cash usage in Mumbai, Delhi, and Bangalore. The shift marks the success of the unified digital payment infrastructure launched in late 2024. Economists suggest this move has reduced the shadow economy by nearly 12% in just eighteen months, leading to a significant increase in tax compliance across urban centers.",
@@ -33,88 +35,90 @@ const static2026News = [
         imageUrl: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=1000",
         poll: { question: "Should AI art be copyrighted?", options: ["Yes", "No", "Complex issue"] }
     },
+    // STOCKS
     {
-        title: "US-India Trade Deal 2.0 Focuses on Semiconductor Supply Chain",
-        summary: "Washington and New Delhi sign an expanded strategic partnership to secure 40% of the global chip supply chain. The deal includes visa fast-tracking for Indian tech talent and multi-billion dollar US subsidies for fabs in Gujarat and Karnataka, significantly boosting local manufacturing.",
-        content: "The second phase of the US-India Critical Technology Partnership was signed yesterday, cementing a bilateral effort to reduce reliance on East Asian chip manufacturing. Under the new terms, US firms will receive tax credits for setting up semiconductor fabrication units in India's Gujarat and Karnataka states.\n\nWait times for H-1B visas for specialized tech workers have also been slashed to 2 weeks under the agreement. 'This is the most significant technology transfer pact in history,' claimed the US Secretary of State. Market analysts expect a surge in Indian tech stocks following the news. The deal also includes joint research into quantum computing, aiming to develop the first commercially viable quantum processor in Bangalore by 2028.",
-        source: "Trade Winds",
-        category: "Geopolitics",
+        title: "Apple Announces First Fully Autonomous 'iCar' for 2027 Launch",
+        summary: "Tech giant Apple surprises Wall Street with a working prototype of its level-5 autonomous vehicle. Shares of AAPL surged 8% in after-hours trading, while traditional automakers saw minor corrections. The vehicle reportedly uses a proprietary 'Photon' chip capable of trillion-range calculations per second.",
+        content: "Apple Inc. has officially broken its silence on 'Project Titan', unveiling a sleek, steering-wheel-less vehicle at its Cupertino headquarters today. The 'iCar' is designed as a luxury lounge on wheels, focusing on seamless integration with the Apple ecosystem. Tim Cook stated that the vehicle represents the 'ultimate integration of hardware, software, and services'.\n\nAnalysts are torn on the valuation impact, but the bullish cohort suggests Apple could capture 5% of the global luxury auto market within three years. Competitors like Tesla and BYD have yet to comment, though industry insiders suggest a new 'Silicon Valley Auto War' is officially underway. Infrastructure partners for charging networks are expected to be announced next quarter.",
+        source: "Market Watch 2026",
+        category: "Stocks",
         sentiment: "bullish",
-        imageUrl: "https://images.unsplash.com/photo-1555664424-778a69022365?auto=format&fit=crop&q=80&w=1000",
-        poll: { question: "Impact on Indian job market?", options: ["Huge Growth", "Minimal", "Brain Drain"] }
+        imageUrl: "https://images.unsplash.com/photo-1593941707882-a5bba1491017?auto=format&fit=crop&q=80&w=1000",
+        poll: { question: "Would you buy an Apple Car?", options: ["Yes, definitely", "No, too expensive", "Wait and see"] }
     },
     {
-        title: "New Education Policy 2026: AI Literacy Mandatory for All Students",
-        summary: "The Ministry of Education updates the NEP to include mandatory computational logic and basic AI ethics for all high school streams, starting the 2026 academic year. The change aims to equip the next generation with the tools to navigate a world dominated by automated systems and algorithmic decisions.",
-        content: "In a move to future-proof the workforce, the Ministry of Education has mandated 'Computational Logic & AI Ethics' as a core subject for Class 11 and 12 students across all streams. The update to the National Education Policy (NEP) asserts that digital literacy is now as fundamental as language skills.\n\n'We are not trying to make everyone a coder, but everyone must understand the logic that runs our world,' stated the Education Minister. Schools have been given a 1-year window to upgrade infrastructure. Ed-tech stocks rallied 5% on the announcement. Critics point to the digital divide in rural schools, but the government has pledged 1 lakh AI-ready tablets to government schools to bridge the gap.",
-        source: "EduTimes 2026",
-        category: "Politics",
-        sentiment: "neutral",
-        imageUrl: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=1000",
-        poll: { question: "Is coding necessary for Arts students?", options: ["Yes, essential", "No, burden", "Optional only"] }
-    },
-    {
-        title: "Mars India Mission: ISRO Prepares for Permanent Habitat Launch",
-        summary: "ISRO announces the countdown for the 2026 Mangalyaan-3, which will carry the first modular habitat components to the Red Planet. This mission signals India's intent to establish a permanent presence in deep space alongside other major space-faring nations.",
-        content: "The Indian Space Research Organisation (ISRO) has entered the final phase of testing for Mangalyaan-3. Unlike previous missions, this flight carries specialized robotic units designed to 3D-print soil-stabilized habitats using Martian regolith. The mission is part of the 'Akash Ganga' program aimed at sending an Indian astronaut to Mars by 2035.\n\nGlobal space agencies have praised the cost-effective launch vehicle developed by ISRO, which uses a new methane-based fuel. The mission also carries several private-sector payloads, highlighting the growing commercialization of the Indian space industry. Public excitement is at an all-time high, with schools across India organizing 'Mars Day' celebrations.",
-        source: "Space Explorer",
-        category: "General",
+        title: "Nifty 50 Hits Historic 30,000 Mark Amid Economic Growth",
+        summary: "The Indian benchmark index cross the psychological barrier of 30,000 as foreign institutional investors (FIIs) pour capital into the manufacturing and defense sectors. GDP growth for the current quarter surpassed expectations at 8.2%, fueling a broad-based rally across mid-cap and large-cap stocks.",
+        content: "It was a red-letter day for Indian markets as the Nifty 50 closed at 30,145, up 1.5% for the day. The rally was led by banking and defense majors, following several large export contracts signed by Indian aerospace firms. The 'Make in India 2.0' initiative seems to be delivering on its promise of transforming India into a global manufacturing hub.\n\nRetail participation has cũng reached an all-time high, with over 150 million active demat accounts. While some analysts warn of overvaluation in the small-cap segment, the consensus remains positive for the long-term structural story. The RBI governor's recent hint at a possible rate cut next month has added further fuel to the bullish sentiment.",
+        source: "Bombay Financial",
+        category: "Stocks",
         sentiment: "bullish",
-        imageUrl: "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&q=80&w=1000",
-        poll: { question: "Should we spend more on space?", options: ["Yes, future!", "No, focus on Earth", "Neutral"] }
+        imageUrl: "https://images.unsplash.com/photo-1611974717414-0435dfca6b70?auto=format&fit=crop&q=80&w=1000",
+        poll: { question: "Nifty target for end of 2026?", options: ["32,000+", "30,000 (Stable)", "Correction coming"] }
     },
+    // CRYPTO
     {
-        title: "Urban Farming Revolution Hits Delhi and Mumbai",
-        summary: "High-tech hydroponic towers are popping up across metro rooftops, reducing vegetable prices by 20%. The urban farming movement, driven by IoT and sustainable nutrients, is transforming how city dwellers source their daily produce.",
-        content: "A green revolution is taking root in India's densest urban centers. Vertical farming startups have seen a 300% growth in the last year, fueled by government subsidies for 'Green Rooftops'. Using automated nutrient delivery systems, these farms use 90% less water than traditional agriculture.\n\nResidents claim the produce is fresher and free from market pesticides. 'I harvest my own spinach every morning,' says a Mumbai resident. While initially expensive, the costs have dropped as local hardware manufacturing for hydroponic kits has scaled up. Municipal corporations are now considering tax breaks for buildings that contribute to the city's food security.",
-        source: "Green City Journal",
-        category: "General",
+        title: "Bitcoin ETFs Capture 15% of Global Gold Investment Volume",
+        summary: "Institutional shift accelerates as Bitcoin ETFs see record inflows, officially eating into the market share of traditional gold funds. Leading hedge funds now allocate an average of 3-5% of their portfolios to digital assets, citing Bitcoin's 'Digital Gold' status in a high-inflation environment.",
+        content: "A landmark report from Goldman Sachs reveals that Bitcoin is increasingly being viewed as a primary hedge against currency debasement. The total market cap of Bitcoin has surpassed $3 trillion, driven by the massive success of spot ETFs in the US, Europe, and Asia. Sovereign wealth funds from at least three nations are rumored to be accumulating BTC as a reserve asset.\n\nTechnological improvements in the Lightning Network have also made micro-payments viable, increasing Bitcoin's utility beyond just a store of value. Regulatory clarity in the EU and the US has provided the necessary comfort for conservative pension funds to enter the space. Opponents still point to environmental concerns, though the mining industry claims 70% of its energy now comes from renewable sources.",
+        source: "CoinDesk 2026",
+        category: "Crypto",
         sentiment: "bullish",
-        imageUrl: "https://images.unsplash.com/photo-1558449028-s541374824d1?auto=format&fit=crop&q=80&w=1000",
-        poll: { question: "Would you grow food on your roof?", options: ["Yes, definitely", "Lack of space", "Too much effort"] }
+        imageUrl: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1000",
+        poll: { question: "Is Bitcoin better than Gold?", options: ["Yes, for 2026", "Gold is safer", "Need both"] }
     },
     {
-        title: "India-UK Free Trade Agreement Finally Signed",
-        summary: "After years of negotiation, London and New Delhi finalize a comprehensive trade pact. The deal removes 95% of tariffs on whiskey, electronics, and textiles, while allowing easier movement for professionals between the two nations.",
-        content: "The Prime Ministers of India and the UK signed the historic 'Deep Partnership' Free Trade Agreement (FTA) today in London. The deal is expected to double bilateral trade by 2030. Key gains for India include zero-duty access for textile exports and a special quota for nursing and hospitality professionals.\n\nIn return, India has lowered tariffs on British automotive parts and high-end consumer goods. Small businesses on both sides are optimistic about the streamlined customs procedures. The deal also includes a data-adequacy clause, making it easier for Indian IT firms to handle UK data. 'This is a natural alliance for the digital age,' said the UK Trade Secretary.",
-        source: "Global Commerce",
-        category: "Geopolitics",
+        title: "Ethereum 3.0 Roadmap Unveils 'The Grand Unification'",
+        summary: "Vitalik Buterin presents the next phase of Ethereum, promising over 100,000 transactions per second through advanced sharding and zero-knowledge rollups. The update aims to make Ethereum the 'world computer' for decentralized finance and enterprise supply chains.",
+        content: "The Ethereum Foundation has released the whitepaper for 'Ethereum 3.0', a massive upgrade set for 2027. The centerpiece of the upgrade is a new data-availability layer that drastically reduces gas fees for Layer 2 scaling solutions. This 'Grand Unification' will allow developers to build complex applications with the speed of centralized servers but the security of a decentralized network.\n\nSince the implementation of EIP-1559 and the transition to Proof-of-Stake, ETH has become a deflationary asset, heightening its appeal for long-term investors. Enterprise adoption has also surged, with global logistics firms using Ethereum to track real-time container movements across borders. The community remains excited, though some developers warn about the complexity of the transition.",
+        source: "Ether Watch",
+        category: "Crypto",
         sentiment: "bullish",
-        imageUrl: "https://images.unsplash.com/photo-1521295121812-323232df2160?auto=format&fit=crop&q=80&w=1000",
-        poll: { question: "Will prices drop for consumers?", options: ["Yes, soon", "No change", "Only for luxury"] }
+        imageUrl: "https://images.unsplash.com/photo-1622737133809-d95047b9e673?auto=format&fit=crop&q=80&w=1000",
+        poll: { question: "Will ETH flip BTC eventually?", options: ["Yes, likely", "No, never", "They coexist"] }
     },
+    // COMMODITIES
     {
-        title: "Genome-Testing Kits Become Mainstream in Healthcare",
-        summary: "Affordable genetic screening is replacing routine blood tests as the first step in preventive medicine. Over 10 million Indians have opted for genome mapping in 2025-26, leading to a surge in personalized lifestyle and dietary recommendations.",
-        content: "Predictive healthcare has seen a massive surge as genome sequencing costs dropped below ₹5,000 for the first time. The 'Digital Health Mission' has successfully integrated genetic profiles into the Unified Health Interface. Doctors can now prescribe medications based on an individual's specific metabolic response, significantly reducing adverse drug reactions.\n\nPrivate insurers are beginning to offer lower premiums for those who follow genetically personalized wellness plans. Challenges remain regarding genetic privacy and data security, but the Ministry of Health has introduced a strict 'Biometric Protection Act' to prevent misuse. This shift marks the end of the 'one-size-fits-all' approach to Indian medicine.",
-        source: "Health Pulse",
-        category: "General",
-        sentiment: "neutral",
-        imageUrl: "https://images.unsplash.com/photo-1579152276502-545a248aef9d?auto=format&fit=crop&q=80&w=1000",
-        poll: { question: "Is genome privacy a concern?", options: ["Yes, very much", "No, for health only", "Neutral"] }
+        title: "Gold Prices Hit New Highs Amid Geopolitical Uncertainty",
+        summary: "Safe-haven demand pushes gold prices above $3,000 per ounce for the first time in history. Tensions in the Middle East and concerns over the stability of the Euro have led central banks to increase their bullion reserves at the fastest pace since the 1970s.",
+        content: "Gold continues its relentless march upward, closing at a record $3,120 today. The surge is being driven by a 'perfect storm' of geopolitical risks and a weakening US dollar. Retail investors are also piling into gold coins and bars, fearing a systemic banking crisis in Western Europe. Central banks of India, China, and Turkey added over 200 tonnes of gold to their vaults in the last quarter alone.\n\nMining companies are struggling to keep up with demand, as new discoveries are becoming increasingly scarce. 'This is a multi-year bull market,' says a leading commodities analyst. However, some warn that high prices might dampen demand for jewelry in key markets like India and China, which could lead to a minor correction in the short term.",
+        source: "Refining Weekly",
+        category: "Commodities",
+        sentiment: "bullish",
+        imageUrl: "https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&q=80&w=1000",
+        poll: { question: "Gold price end of year?", options: ["$3500+", "$3000 (Flat)", "Correction to $2500"] }
     }
 ];
 
-function getWeekId() {
+const getWeekId = () => {
     const now = new Date();
-    const oneJan = new Date(now.getFullYear(), 0, 1);
-    const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
-    const result = Math.ceil((now.getDay() + 1 + numberOfDays) / 7);
-    return `${now.getFullYear()}-W${result}`;
-}
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const pastDays = (now - startOfYear) / 86400000;
+    const weekNum = Math.ceil((pastDays + startOfYear.getDay() + 1) / 7);
+    return `${now.getFullYear()}-W${weekNum}`;
+};
 
 async function seed() {
     await mongoose.connect(process.env.MONGODB_URI);
     const weekId = getWeekId();
+    console.log(`Seeding for Week ID: ${weekId}`);
     let count = 0;
     for (const art of static2026News) {
         const exists = await News.findOne({ title: art.title });
         if (!exists) {
-            await new News({ ...art, weekId }).save();
+            const savedNews = await new News({ ...art, weekId }).save();
+
+            // Generate poll
+            await new Poll({
+                newsId: savedNews._id,
+                question: art.poll.question,
+                options: art.poll.options.map(text => ({ text, votes: 0 }))
+            }).save();
+
             count++;
         }
     }
-    console.log(`Seeded ${count} high-quality 2026 articles.`);
+    console.log(`Seeded ${count} high-quality 2026 articles with associated polls.`);
     process.exit();
 }
 seed();
