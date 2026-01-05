@@ -9,7 +9,7 @@ const newsSchema = new mongoose.Schema(
         url: { type: String },
         imageUrl: { type: String },
         publishedAt: { type: Date, default: Date.now },
-        category: { type: String, enum: ['Crypto', 'Stocks', 'Politics', 'General'], required: true },
+        category: { type: String, enum: ['Crypto', 'Stocks', 'Politics', 'General', 'Geopolitics', 'Commodities'], required: true },
         sentiment: { type: String, enum: ['bullish', 'bearish', 'neutral'], default: 'neutral' },
         weekId: { type: String, required: true, index: true } // To group news by week (e.g., "2024-W48")
     },

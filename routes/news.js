@@ -29,215 +29,192 @@ const cleanText = (text) => {
         .trim();
 };
 
-// Get weekly news (auto-generate if missing or stale)
+// Get news (with category filtering)
 router.get('/', async (req, res) => {
     try {
+        const { category: filterCategory } = req.query;
         const weekId = getWeekId();
-        // Fetch news for current week, sorted by newest first
-        let news = await News.find({ weekId }).sort({ createdAt: -1 });
 
-        // Check if news is stale (older than 24 hours) or missing
-        const isStale = news.length === 0 || (new Date() - new Date(news[0].createdAt) > 24 * 60 * 60 * 1000);
+        // Fetch existing news for current week
+        let query = { weekId };
+
+        // "Money" categories that should be excluded from General news
+        const moneyCategories = ['Crypto', 'Stocks', 'Commodities'];
+
+        if (filterCategory === 'General') {
+            query.category = { $in: ['Politics', 'Geopolitics', 'General'] };
+            // Double-check to exclude money news even if miscategorized
+            query.title = { $not: /bitcoin|crypto|stock market|nifty|sensex|commodity|gold price|silver price|crude oil/i };
+        } else if (filterCategory && filterCategory !== 'All') {
+            query.category = filterCategory;
+        }
+
+        let news = await News.find(query).sort({ createdAt: -1 });
+
+        // Check if we need to fetch fresh news for the requested category or if all news is stale
+        const categoryCount = await News.countDocuments(query);
+        const globalCount = await News.countDocuments({ weekId });
+
+        // Stale if no news at all, or no news for this category, or oldest news is > 24h old
+        const isStale = globalCount === 0 ||
+            (filterCategory && categoryCount === 0) ||
+            (news.length > 0 && new Date() - new Date(news[0].createdAt) > 24 * 60 * 60 * 1000);
 
         if (isStale) {
-            console.log('News is missing or stale. Fetching fresh news...');
+            console.log(`News for category "${filterCategory || 'All'}" is missing or stale. Fetching fresh news...`);
             try {
                 const axios = require('axios');
-                const NEWS_API_KEY = process.env.NEWS_API_KEY || ''; // Get free key from newsapi.org
+                const NEWS_API_KEY = process.env.NEWS_API_KEY || '';
 
-                // Fetch news from NewsAPI (free tier allows 100 requests/day)
-                // Broadened categories for global + local mix
-                const categories = ['crypto', 'stocks', 'politics'];
+                if (!NEWS_API_KEY) {
+                    console.warn('NEWS_API_KEY not found in environment');
+                }
+
+                // Negative filter for "General" news to avoid money topics
+                const generalNegativeFilter = ' -crypto -bitcoin -ethereum -stocks -nifty -sensex -"stock market" -commodity -gold -silver -crude';
+
+                const categoriesToFetch = [
+                    { id: 'crypto', q: '(cryptocurrency OR bitcoin OR ethereum) AND India', cat: 'Crypto', useTop: false },
+                    { id: 'stocks', q: '(NSE OR Nifty OR Sensex OR "Indian stock market")', cat: 'Stocks', useTop: false },
+                    { id: 'politics', q: '("Modi" OR "Indian Government" OR "Supreme Court of India" OR "Indian Parliament")' + generalNegativeFilter, cat: 'Politics', useTop: true },
+                    { id: 'geopolitics', q: '("India China" OR "India US" OR "G20" OR "United Nations India" OR "India Foreign Policy")' + generalNegativeFilter, cat: 'Geopolitics', useTop: true },
+                    { id: 'commodities', q: '("Gold price India" OR "Silver price India" OR "Crude oil India")', cat: 'Commodities', useTop: false }
+                ];
+
                 const allArticles = [];
+                const seenTitles = new Set();
+                const seenUrls = new Set();
 
-                for (const category of categories) {
-                    let query = '';
-                    let newsCategory = '';
+                for (const item of categoriesToFetch) {
+                    const isRequested = !filterCategory ||
+                        filterCategory === 'All' ||
+                        (filterCategory === 'General' && ['Politics', 'Geopolitics'].includes(item.cat)) ||
+                        filterCategory === item.cat;
 
-                    if (category === 'crypto') {
-                        query = '(cryptocurrency OR bitcoin OR ethereum OR "digital asset" OR web3) AND (India OR "Indian Rupee" OR "RBI crypto" OR WazirX OR CoinDCX OR "Indian government")';
-                        newsCategory = 'Crypto';
-                    } else if (category === 'stocks') {
-                        query = '("Indian stock market" OR BSE OR NSE OR Nifty OR Sensex OR "SEBI regulations" OR "Indian companies")';
-                        newsCategory = 'Stocks';
-                    } else {
-                        query = '("Indian economy" OR "RBI policy" OR "India GST" OR "Indian finance" OR "Budget of India")';
-                        newsCategory = 'Economy';
-                    }
+                    if (!isRequested) continue;
 
                     try {
-                        const response = await axios.get('https://newsapi.org/v2/everything', {
-                            params: {
-                                q: query,
-                                language: 'en',
-                                sortBy: 'publishedAt',
-                                pageSize: 5,
-                                apiKey: NEWS_API_KEY
+                        let response;
+                        // For Politics/Geopolitics, try top-headlines first for "trending" impact
+                        if (item.useTop) {
+                            try {
+                                response = await axios.get('https://newsapi.org/v2/top-headlines', {
+                                    params: {
+                                        q: item.q.split(')')[0].replace(/[()"]/g, '').split(' OR ')[0], // Simple query for headlines
+                                        country: 'in',
+                                        pageSize: 10,
+                                        apiKey: NEWS_API_KEY
+                                    },
+                                    timeout: 7000
+                                });
+                            } catch (e) {
+                                console.log(`Top headlines failed for ${item.id}, falling back to everything...`);
                             }
-                        });
+                        }
 
+                        // If top-headlines didn't work or wasn't used, use 'everything' sorted by popularity
+                        if (!response || !response.data || !response.data.articles || response.data.articles.length === 0) {
+                            response = await axios.get('https://newsapi.org/v2/everything', {
+                                params: {
+                                    q: item.q,
+                                    language: 'en',
+                                    sortBy: 'popularity', // Focus on most famous/linked news
+                                    pageSize: 20,
+                                    apiKey: NEWS_API_KEY
+                                },
+                                timeout: 7000
+                            });
+                        }
 
                         if (response.data && response.data.articles) {
-                            response.data.articles.forEach(article => {
-                                const title = cleanText(article.title);
-                                const desc = cleanText(article.description || '');
-                                const cont = cleanText(article.content || '');
+                            // Filter for quality: only news from major domains or with images to ensure "famous/trending" feel
+                            const filteredArticles = response.data.articles.filter(a => !!a.urlToImage);
 
-                                if (title && (desc || cont)) {
-                                    allArticles.push({
-                                        title: title.substring(0, 200),
-                                        summary: (desc || cont).substring(0, 300),
-                                        content: (cont || desc).substring(0, 1000),
-                                        source: article.source?.name || 'News Source',
-                                        url: article.url,
-                                        imageUrl: article.urlToImage,
-                                        publishedAt: article.publishedAt,
-                                        category: newsCategory,
-                                        sentiment: 'neutral'
-                                    });
-                                }
+                            filteredArticles.forEach(article => {
+                                const cleanTitle = cleanText(article.title).substring(0, 200);
+                                const url = article.url;
+
+                                if (!cleanTitle || cleanTitle.length < 15) return;
+                                if (!article.description && !article.content) return;
+
+                                // Deduplication within this fetch session
+                                if (seenTitles.has(cleanTitle.toLowerCase()) || seenUrls.has(url)) return;
+
+                                seenTitles.add(cleanTitle.toLowerCase());
+                                seenUrls.add(url);
+
+                                allArticles.push({
+                                    title: cleanTitle,
+                                    summary: cleanText(article.description || article.content || '').substring(0, 300),
+                                    content: cleanText(article.content || article.description || '').substring(0, 1000),
+                                    source: article.source?.name || 'News Source',
+                                    url: article.url,
+                                    imageUrl: article.urlToImage,
+                                    publishedAt: article.publishedAt,
+                                    category: item.cat,
+                                    sentiment: 'neutral'
+                                });
                             });
                         }
                     } catch (err) {
-                        console.error(`Error fetching ${category} news:`, err.message);
+                        console.error(`Error fetching ${item.id} news:`, err.message);
                     }
                 }
 
-                // If NewsAPI fails or no key, use AI as fallback
-                if (allArticles.length === 0) {
-                    console.log('NewsAPI failed, using AI fallback');
-                    try {
-                        const groqAvailable = await groqService.isAvailable();
-                        let generatedData;
+                if (allArticles.length > 0) {
+                    console.log(`Fetched ${allArticles.length} unique articles from API. Saving new ones...`);
+                    let savedCount = 0;
+                    for (const article of allArticles) {
+                        // Simpler deduplication against database to avoid regex issues
+                        const exists = await News.findOne({
+                            $or: [
+                                { url: article.url },
+                                { title: article.title }
+                            ]
+                        });
 
-                        if (groqAvailable) {
-                            console.log('🤖 [NEWS] Generating with Groq...');
-                            generatedData = await groqService.generateNewsAndPolls();
-                        } else {
-                            console.log('🤖 [NEWS] Generating with Gemini...');
-                            generatedData = await geminiService.generateNewsAndPolls();
-                        }
-
-                        for (const item of generatedData) {
-                            // Check for duplicates
-                            const exists = await News.findOne({ title: item.title });
-                            if (exists) continue;
-
-                            const newNews = new News({
-                                title: item.title,
-                                summary: item.summary,
-                                content: item.content,
-                                source: item.source || 'AI Summary',
-                                category: item.category,
-                                sentiment: item.sentiment,
-                                weekId
-                            });
-                            const savedNews = await newNews.save();
-
-                            if (item.poll) {
-                                const newPoll = new Poll({
-                                    newsId: savedNews._id,
-                                    question: item.poll.question,
-                                    options: item.poll.options.map(opt => ({ text: opt, votes: 0 }))
-                                });
-                                await newPoll.save();
-                            }
-                        }
-                    } catch (geminiErr) {
-                        console.error('Gemini also failed, using sample news:', geminiErr.message);
-                        // Use sample news as last resort
-                        const sampleNews = [
-                            { title: 'Bitcoin Maintains Strength Above ₹50L Mark', summary: 'Bitcoin continues to show resilience as institutional adoption grows.', content: 'Major financial institutions are increasing their crypto allocations.', url: 'http://sample.com/1', source: 'Crypto News', category: 'Crypto', sentiment: 'bullish' },
-                            { title: 'Stock Markets Show Mixed Signals', summary: 'Major indices fluctuate as investors digest latest economic indicators.', content: 'Market participants are closely watching inflation data.', url: 'http://sample.com/2', source: 'Market Watch', category: 'Stocks', sentiment: 'neutral' },
-                            { title: 'Central Bank Policy Decisions Impact Markets', summary: 'Policy makers signal cautious approach to interest rates.', content: 'Economic outlook remains uncertain.', url: 'http://sample.com/3', source: 'Economic Times', category: 'Politics', sentiment: 'neutral' }
-                        ];
-
-                        for (const article of sampleNews) {
-                            const exists = await News.findOne({ title: article.title });
-                            if (exists) continue;
-
-                            const newNews = new News({ ...article, weekId });
-                            const savedNews = await newNews.save();
-                            const newPoll = new Poll({
-                                newsId: savedNews._id,
-                                question: `What's your outlook on this ${article.category} news?`,
-                                options: [{ text: 'Very Bullish', votes: 0 }, { text: 'Bullish', votes: 0 }, { text: 'Neutral', votes: 0 }, { text: 'Bearish', votes: 0 }]
-                            });
-                            await newPoll.save();
-                        }
-                    }
-                } else {
-                    // Save fetched news and generate polls using Gemini
-                    for (const article of allArticles.slice(0, 7)) {
-                        // Check for duplicates
-                        const exists = await News.findOne({ url: article.url });
                         if (exists) continue;
 
-                        const newNews = new News({
-                            title: article.title,
-                            summary: article.summary,
-                            content: article.content,
-                            source: article.source,
-                            url: article.url,
-                            imageUrl: article.imageUrl,
-                            publishedAt: article.publishedAt,
-                            category: article.category,
-                            sentiment: article.sentiment,
-                            weekId
-                        });
-                        const savedNews = await newNews.save();
+                        const savedNews = await new News({ ...article, weekId }).save();
+                        savedCount++;
 
-                        // Create category-specific polls
+                        // Create polls
                         let pollQuestion = '';
                         let pollOptions = [];
 
                         if (article.category === 'Crypto') {
-                            const cryptoQuestions = [
-                                { q: 'How will this impact crypto prices?', opts: ['Major Rally Expected', 'Moderate Increase', 'Sideways Movement', 'Potential Decline'] },
-                                { q: 'What\'s your trading strategy?', opts: ['Buy the Dip', 'HODL Long-term', 'Take Profits', 'Wait and Watch'] },
-                                { q: 'Market sentiment after this news?', opts: ['Very Bullish', 'Bullish', 'Neutral', 'Bearish'] }
-                            ];
-                            const selected = cryptoQuestions[Math.floor(Math.random() * cryptoQuestions.length)];
-                            pollQuestion = selected.q;
-                            pollOptions = selected.opts;
+                            pollQuestion = 'How will this impact crypto prices?';
+                            pollOptions = ['Major Rally', 'Neutral', 'Correction'];
                         } else if (article.category === 'Stocks') {
-                            const stockQuestions = [
-                                { q: 'How will markets react?', opts: ['Strong Rally', 'Modest Gains', 'Range-bound', 'Correction Ahead'] },
-                                { q: 'Best sector to invest?', opts: ['Tech Stocks', 'Banking', 'Pharma', 'Energy'] },
-                                { q: 'Your market outlook?', opts: ['Very Bullish', 'Cautiously Optimistic', 'Neutral', 'Bearish'] }
-                            ];
-                            const selected = stockQuestions[Math.floor(Math.random() * stockQuestions.length)];
-                            pollQuestion = selected.q;
-                            pollOptions = selected.opts;
+                            pollQuestion = 'Market outlook after this news?';
+                            pollOptions = ['Bullish', 'Neutral', 'Bearish'];
+                        } else if (article.category === 'Politics' || article.category === 'Geopolitics') {
+                            pollQuestion = 'Impact on Indian society & economy?';
+                            pollOptions = ['Positive', 'Neutral', 'Negative'];
                         } else {
-                            const politicsQuestions = [
-                                { q: 'Impact on markets?', opts: ['Very Positive', 'Slightly Positive', 'Neutral', 'Negative'] },
-                                { q: 'How to position portfolio?', opts: ['Increase Equity', 'Add Bonds', 'Hold Cash', 'Diversify'] },
-                                { q: 'Economic outlook?', opts: ['Strong Growth', 'Moderate Growth', 'Stagnation', 'Recession Risk'] }
-                            ];
-                            const selected = politicsQuestions[Math.floor(Math.random() * politicsQuestions.length)];
-                            pollQuestion = selected.q;
-                            pollOptions = selected.opts;
+                            pollQuestion = 'Your takeaway from this?';
+                            pollOptions = ['Agree', 'Disagree', 'Neutral'];
                         }
 
-                        const newPoll = new Poll({
+                        await new Poll({
                             newsId: savedNews._id,
                             question: pollQuestion,
-                            options: pollOptions.map(opt => ({ text: opt, votes: 0 }))
-                        });
-                        await newPoll.save();
+                            options: pollOptions.map(text => ({ text, votes: 0 }))
+                        }).save();
                     }
+                    console.log(`Successfully saved ${savedCount} new articles to database.`);
+                } else {
+                    console.log('No new articles found for the requested criteria.');
                 }
 
-                // Fetch again
-                news = await News.find({ weekId }).sort({ createdAt: -1 });
+                // Refresh the result after fetching
+                news = await News.find(query).sort({ createdAt: -1 });
             } catch (err) {
-                console.error('Failed to fetch/generate news:', err);
-                return res.status(500).json({ message: 'Failed to fetch news' });
+                console.error('Failed fresh news fetch:', err.message);
             }
         }
 
-        // Batch fetch polls for efficiency
+        // Batch fetch polls
         const newsIds = news.map(n => n._id);
         const polls = await Poll.find({ newsId: { $in: newsIds } }).lean();
         const pollsByNewsId = polls.reduce((acc, p) => {
@@ -246,11 +223,8 @@ router.get('/', async (req, res) => {
         }, {});
 
         const newsWithPolls = news.map(n => {
-            const nObj = n.toObject ? n.toObject() : n;
-            return {
-                ...nObj,
-                poll: pollsByNewsId[nObj._id.toString()] || null
-            };
+            const nObj = n.toObject();
+            return { ...nObj, poll: pollsByNewsId[nObj._id.toString()] || null };
         });
 
         res.json(newsWithPolls);

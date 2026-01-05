@@ -24,6 +24,7 @@ const startNSEStocksJob = require('./jobs/nseStocksJob');
 const startAISummariesJob = require('./jobs/aiSummariesJob');
 const { intelligencePanelJob, runIntelligencePanelJob, INTELLIGENCE_CACHE } = require('./jobs/intelligencePanelJobGemini');
 const { commodityJob, runCommodityJobNow } = require('./jobs/commodityJob');
+const { initializeAIAnalysis, hourlyAIJob, dailyAIJob } = require('./jobs/aiAnalysisScheduler');
 
 const app = express();
 const server = http.createServer(app);
@@ -165,66 +166,68 @@ io.on('connection', (socket) => {
 
 app.set('io', io);
 
-// Initialize AI Analysis Scheduler
-const { initializeAIAnalysis, hourlyAIJob, dailyAIJob } = require('./jobs/aiAnalysisScheduler');
-
-// Start the scheduler in the background
-initializeAIAnalysis().catch(err => {
-  console.error('⚠️ Failed to initialize AI analysis scheduler:', err.message);
-});
-
-// Start hourly AI analysis job
-hourlyAIJob.start();
-
-// Start daily AI analysis job at 9:00 AM
-dailyAIJob.start();
-console.log('🤖 AI Analysis Scheduler initialized - Daily job at 9:00 AM, Hourly job every hour');
-
+// Admin Setup Function
 const ensureAdminUser = async () => {
   try {
-    const adminIdentifier = process.env.ADMIN_EMAIL || 'admin@crowdverse.local';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@crowdverse.in';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
 
-    let admin = await User.findOne({ emailOrMobile: adminIdentifier });
-    if (!admin) {
-      admin = new User({
+    const adminExists = await User.findOne({ emailOrMobile: adminEmail });
+    if (!adminExists) {
+      await User.create({
         firstName: 'Admin',
-        lastName: 'User',
-        emailOrMobile: adminIdentifier,
+        lastName: 'System',
+        emailOrMobile: adminEmail,
         password: adminPassword,
-        isAdmin: true,
+        isAdmin: true
       });
-      await admin.save();
-      console.log('👤 Admin user created with email:', adminIdentifier);
-    } else if (!admin.isAdmin) {
-      admin.isAdmin = true;
-      await admin.save();
-      console.log('👤 Existing user promoted to admin:', adminIdentifier);
+      console.log('✅ Admin user created');
+    } else if (!adminExists.isAdmin) {
+      adminExists.isAdmin = true;
+      await adminExists.save();
+      console.log('👤 Existing user promoted to admin:', adminEmail);
     }
-  } catch (err) {
-    console.error('Failed to ensure admin user exists:', err.message);
+  } catch (error) {
+    console.error('Error ensuring admin user:', error);
   }
 };
 
-ensureAdminUser();
+// Staggered Startup for Heavy Tasks (Deferred)
+// This ensures the server is responsive for Login and Health Check immediately on Render
+setTimeout(() => {
+  console.log('🚀 [STARTUP] Ensuring admin user existence...');
+  ensureAdminUser().catch(err => console.error('⚠️ Admin setup failed:', err.message));
+}, 5000);
+
+setTimeout(() => {
+  console.log('🚀 [STARTUP] Starting market data jobs...');
+  startMarketSnapshotJob();
+  startNSEStocksJob();
+  startAISummariesJob();
+  intelligencePanelJob.start();
+  commodityJob.start();
+}, 12000);
+
+setTimeout(() => {
+  console.log('🚀 [STARTUP] Running initial commodity data fetch...');
+  runCommodityJobNow().catch(err => {
+    console.error('⚠️ Failed initial commodity fetch:', err.message);
+  });
+}, 22000);
+
+setTimeout(() => {
+  console.log('🚀 [STARTUP] Starting AI Analysis Scheduler...');
+  initializeAIAnalysis().catch(err => {
+    console.error('⚠️ Failed to initialize AI analysis scheduler:', err.message);
+  });
+  hourlyAIJob.start();
+  dailyAIJob.start();
+}, 35000);
 
 const PORT = process.env.SERVER_PORT || process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log('🤖 AI Analysis Scheduler initialized and running hourly');
 });
-
-// Schedule hourly market snapshots if env configured
-startMarketSnapshotJob();
-// Schedule hourly NSE NIFTY 50 refresh to DB
-startNSEStocksJob();
-// Schedule daily AI summaries warm-up (configurable via env)
-startAISummariesJob();
-// Schedule daily intelligence panel data generation at 3 AM
-intelligencePanelJob.start();
-// Schedule daily commodity price updates
-commodityJob.start();
-runCommodityJobNow();
 
 // Manual trigger endpoint for intelligence job
 app.post('/api/intelligence/trigger', async (req, res) => {
