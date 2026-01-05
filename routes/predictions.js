@@ -4,6 +4,8 @@ const Poll = require('../models/Poll');
 const Comment = require('../models/Comment');
 const geminiService = require('../services/geminiService');
 
+const { protect } = require('../middleware/auth');
+
 // Initial seed data for predictions
 const seedPredictions = async () => {
     const predictionData = [
@@ -98,12 +100,18 @@ const seedPredictions = async () => {
     ];
 
     try {
+        // ALWAYS Wipe generic comments on boot to ensure individual discussions
+        await Comment.deleteMany({
+            category: 'prediction',
+            text: { $in: ["Spot on analysis by the AI here.", "I think the community sentiment is a bit too bullish.", "Counting down the days to 2026!"] }
+        });
+
         const lastQuestion = predictionData[predictionData.length - 1].question;
         const targetPoll = await Poll.findOne({ category: 'prediction', question: lastQuestion });
-        const needsRefresh = !targetPoll || (await Poll.countDocuments({ category: 'prediction' })) !== predictionData.length;
+        const pollCount = await Poll.countDocuments({ category: 'prediction' });
 
-        if (needsRefresh) {
-            console.log('Refreshing prediction polls with user-requested data...');
+        if (!targetPoll || pollCount !== predictionData.length) {
+            console.log('🔄 Re-seeding individual prediction polls (No shared comments)...');
             await Poll.deleteMany({ category: 'prediction' });
 
             for (const item of predictionData) {
@@ -114,30 +122,11 @@ const seedPredictions = async () => {
                     aiCommentsSummary: item.aiCommentsSummary,
                     aiSentimentSummary: item.aiSentimentSummary,
                     aiFinalSummary: item.aiFinalSummary,
-                    options: item.options.map(opt => ({
-                        text: opt,
-                        votes: Math.floor(Math.random() * 50) + 5
-                    }))
+                    options: item.options.map(opt => ({ text: opt, votes: Math.floor(Math.random() * 50) + 5 }))
                 });
-                const savedPoll = await poll.save();
-
-                // Add sample comments
-                const sampleComments = [
-                    "Spot on analysis by the AI here.",
-                    "I think the community sentiment is a bit too bullish.",
-                    "Counting down the days to 2026!"
-                ];
-
-                for (const text of sampleComments) {
-                    await Comment.create({
-                        asset: savedPoll._id,
-                        text,
-                        category: 'prediction',
-                        user: '65a1234567890abcdef12345'
-                    });
-                }
+                await poll.save();
             }
-            console.log('Seed completed successfully.');
+            console.log('✅ Individual prediction polls ready.');
         }
     } catch (err) {
         console.error('Seed error:', err);
@@ -152,6 +141,62 @@ router.get('/', async (req, res) => {
         res.json(polls);
     } catch (err) {
         res.status(500).json({ message: err.message });
+    }
+});
+
+// GET comments for a prediction poll
+router.get('/:id/comments', async (req, res) => {
+    try {
+        const comments = await Comment.find({ asset: String(req.params.id) })
+            .populate('user', 'firstName emailOrMobile isGuest')
+            .populate('parentId')
+            .sort({ createdAt: -1 });
+        res.json(comments);
+    } catch (err) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// Add comment to prediction
+router.post('/:id/comments', protect, async (req, res) => {
+    try {
+        const { text, parentId } = req.body;
+        const asset = String(req.params.id);
+
+        if (!text?.trim()) return res.status(400).json({ message: 'Comment text required' });
+
+        // Validate parentId if provided
+        if (parentId) {
+            const parentComment = await Comment.findById(parentId);
+            if (!parentComment || parentComment.asset !== asset) {
+                return res.status(400).json({ message: 'Invalid parent comment' });
+            }
+        }
+
+        const comment = new Comment({
+            asset,
+            user: req.user.isGuest ? {
+                _id: req.user.id,
+                id: req.user.id,
+                firstName: req.user.firstName,
+                emailOrMobile: req.user.emailOrMobile,
+                isGuest: true
+            } : req.user._id,
+            text: text.trim(),
+            category: 'prediction',
+            parentId: parentId || null
+        });
+
+        await comment.save();
+
+        if (!req.user.isGuest) {
+            await comment.populate('user', 'firstName emailOrMobile isGuest');
+        }
+
+        res.json(comment);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 
@@ -189,12 +234,12 @@ router.post('/:id/analyze', async (req, res) => {
         if (!poll) return res.status(404).json({ message: 'Poll not found' });
 
         // Fetch recent comments for this prediction
-        const comments = await Comment.find({ asset: poll._id }).sort({ createdAt: -1 }).limit(20);
+        const comments = await Comment.find({ asset: String(poll._id) }).sort({ createdAt: -1 }).limit(20);
         const commentTexts = comments.map(c => c.text);
 
         // Prepare data for AI analysis
         const assetData = {
-            assetSymbol: `PRE-${poll._id.slice(-6).toUpperCase()}`,
+            assetSymbol: `PRE-${String(poll._id).slice(-6)}`,
             assetName: poll.question,
             recentNews: "",
             userComments: commentTexts.join('\n'),

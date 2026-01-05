@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const commentSchema = new mongoose.Schema(
   {
-    asset: { type: String, required: true, uppercase: true, trim: true },
+    asset: { type: String, required: true, trim: true },
     user: {
       type: mongoose.Schema.Types.Mixed,
       required: true,

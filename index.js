@@ -23,6 +23,7 @@ const startMarketSnapshotJob = require('./jobs/marketSnapshotJob');
 const startNSEStocksJob = require('./jobs/nseStocksJob');
 const startAISummariesJob = require('./jobs/aiSummariesJob');
 const { intelligencePanelJob, runIntelligencePanelJob, INTELLIGENCE_CACHE } = require('./jobs/intelligencePanelJobGemini');
+const { commodityJob, runCommodityJobNow } = require('./jobs/commodityJob');
 
 const app = express();
 const server = http.createServer(app);
@@ -221,6 +222,9 @@ startNSEStocksJob();
 startAISummariesJob();
 // Schedule daily intelligence panel data generation at 3 AM
 intelligencePanelJob.start();
+// Schedule daily commodity price updates
+commodityJob.start();
+runCommodityJobNow();
 
 // Manual trigger endpoint for intelligence job
 app.post('/api/intelligence/trigger', async (req, res) => {

@@ -338,19 +338,38 @@ router.get('/:newsId/comments', async (req, res) => {
 router.post('/:newsId/comments', protect, async (req, res) => {
     try {
         const { text, parentId } = req.body;
+        const asset = String(req.params.newsId).toUpperCase();
+
+        if (!text?.trim()) return res.status(400).json({ message: 'Comment text required' });
+
+        // Validate parentId if provided
+        if (parentId) {
+            const parentComment = await Comment.findById(parentId);
+            if (!parentComment || parentComment.asset !== asset) {
+                return res.status(400).json({ message: 'Invalid parent comment' });
+            }
+        }
 
         const comment = new Comment({
-            asset: String(req.params.newsId).toUpperCase(), // Using newsId as asset identifier
-            user: req.user._id,
-            text,
+            asset,
+            user: req.user.isGuest ? {
+                _id: req.user.id,
+                id: req.user.id,
+                firstName: req.user.firstName,
+                emailOrMobile: req.user.emailOrMobile,
+                isGuest: true
+            } : req.user._id,
+            text: text.trim(),
             category: 'news',
             parentId: parentId || null
         });
 
         await comment.save();
 
-        // Populate user for immediate display
-        await comment.populate('user', 'firstName emailOrMobile isGuest');
+        // Populate user for immediate display if not guest
+        if (!req.user.isGuest) {
+            await comment.populate('user', 'firstName emailOrMobile isGuest');
+        }
 
         res.json(comment);
     } catch (err) {

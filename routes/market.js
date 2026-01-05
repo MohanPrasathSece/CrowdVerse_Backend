@@ -337,4 +337,16 @@ router.get('/stocks', async (req, res) => {
   }
 });
 
+// GET /api/market/commodities
+router.get('/commodities', async (_req, res) => {
+  try {
+    const Commodity = require('../models/Commodity');
+    const results = await Commodity.find({}).sort({ name: 1 });
+    return res.json(results);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Failed to fetch commodity markets' });
+  }
+});
+
 module.exports = router;
