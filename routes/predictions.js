@@ -100,18 +100,19 @@ const seedPredictions = async () => {
     ];
 
     try {
-        // ALWAYS Wipe generic comments on boot to ensure individual discussions
-        await Comment.deleteMany({
-            category: 'prediction',
-            text: { $in: ["Spot on analysis by the AI here.", "I think the community sentiment is a bit too bullish.", "Counting down the days to 2026!"] }
-        });
-
         const lastQuestion = predictionData[predictionData.length - 1].question;
         const targetPoll = await Poll.findOne({ category: 'prediction', question: lastQuestion });
         const pollCount = await Poll.countDocuments({ category: 'prediction' });
 
         if (!targetPoll || pollCount !== predictionData.length) {
-            console.log('🔄 Re-seeding individual prediction polls (No shared comments)...');
+            console.log('🔄 Re-seeding individual prediction polls...');
+
+            // Wipe generic comments only when re-seeding to ensure fresh discussion
+            await Comment.deleteMany({
+                category: 'prediction',
+                text: { $in: ["Spot on analysis by the AI here.", "I think the community sentiment is a bit too bullish.", "Counting down the days to 2026!"] }
+            });
+
             await Poll.deleteMany({ category: 'prediction' });
 
             for (const item of predictionData) {

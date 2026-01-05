@@ -110,7 +110,14 @@ const fetchCommodityPrices = async () => {
             prices.SILICON = 0.22;
             history.SILICON = 0.21;
 
-            console.log(`✨ API-Derived Prices (INR): Gold ₹${prices.GOLD.toFixed(2)}, Silver ₹${prices.SILVER.toFixed(2)}`);
+            const goldPrice = Number(prices.GOLD);
+            const silverPrice = Number(prices.SILVER);
+
+            if (isNaN(goldPrice) || isNaN(silverPrice)) {
+                throw new Error('Calculated prices are not valid numbers');
+            }
+
+            console.log(`✨ API-Derived Prices (INR): Gold ₹${goldPrice.toFixed(2)}, Silver ₹${silverPrice.toFixed(2)}`);
         } catch (apiErr) {
             console.error('❌ Major API error:', apiErr.message);
             prices.GOLD = 14000; prices.SILVER = 249; prices.CRUDEOIL = 32; prices.COPPER = 1.16; prices.SILICON = 0.22;
@@ -137,8 +144,8 @@ const fetchCommodityPrices = async () => {
                     rank: item.rank,
                     name: item.name,
                     symbol: item.symbol,
-                    pricePerGram: Number(item.price.toFixed(2)),
-                    prevPricePerGram: Number(item.prev.toFixed(2)),
+                    pricePerGram: Number((item.price || 0).toFixed(2)),
+                    prevPricePerGram: Number((item.prev || item.price || 0).toFixed(2)),
                     unit: item.unit,
                     currency: 'INR',
                     lastUpdated: new Date()
